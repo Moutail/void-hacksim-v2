@@ -1,0 +1,69 @@
+/* src/pages/NotFound/NotFound.css */
+.not-found {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+  text-align: center;
+}
+
+.not-found-content {
+  max-width: 600px;
+  padding: 30px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.not-found h1 {
+  font-size: 5rem;
+  color: #0f0;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  font-family: 'Courier New', monospace;
+}
+
+.error-message {
+  background-color: #111;
+  padding: 20px;
+  border-radius: 5px;
+  margin-bottom: 30px;
+  text-align: left;
+  font-family: 'Courier New', monospace;
+}
+
+.terminal-line {
+  margin-bottom: 10px;
+}
+
+.error-prompt {
+  color: #ff3860;
+  font-weight: bold;
+}
+
+.error-text {
+  color: #ddd;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+}
+
+.home-button {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #0f0;
+  padding: 10px 20px;
+  border: 1px solid #0f0;
+  border-radius: 5px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.home-button:hover {
+  background-color: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}

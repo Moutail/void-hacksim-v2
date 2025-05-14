@@ -1,0 +1,367 @@
+/* src/components/Admin/AdminForms.css */
+.admin-form-container {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.admin-form-container h2 {
+  color: #0f0;
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+}
+
+.challenge-form,
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-group label {
+  color: #ccc;
+  font-weight: bold;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px;
+  background-color: #111;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-group small {
+  color: #999;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-container input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.checkbox-label {
+  color: #ccc;
+}
+
+.form-section {
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.form-section h3 {
+  color: #0f0;
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.2rem;
+}
+
+.form-section h4 {
+  color: #ccc;
+  margin-top: 15px;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.objective-list,
+.hint-list {
+  margin-bottom: 20px;
+}
+
+.no-items {
+  color: #999;
+  font-style: italic;
+  margin: 10px 0;
+}
+
+.objectives-table,
+.hints-table,
+.paths-table,
+.files-table {
+  width: 100%;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.objectives-header,
+.hints-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  background-color: #111;
+  padding: 10px;
+  font-weight: bold;
+  color: #ccc;
+}
+
+.objective-item,
+.hint-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 10px;
+  border-top: 1px solid #333;
+}
+
+.path-item,
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #333;
+}
+
+.path-item:last-child,
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.path-item.active {
+  background-color: rgba(0, 255, 0, 0.1);
+}
+
+.path-name,
+.file-name {
+  cursor: pointer;
+  color: #ccc;
+}
+
+.path-name:hover,
+.file-name:hover {
+  color: #fff;
+}
+
+.objective-actions,
+.hint-actions,
+.path-actions,
+.file-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.add-objective,
+.add-hint,
+.add-path,
+.add-file {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #111;
+  border-radius: 4px;
+}
+
+.path-input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.path-input-group input {
+  flex: 1;
+}
+
+.password-input-group {
+  display: flex;
+  align-items: center;
+}
+
+.password-input-group input {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.toggle-password-btn {
+  padding: 10px 15px;
+  background-color: #333;
+  color: #ccc;
+  border: 1px solid #333;
+  border-left: none;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  cursor: pointer;
+}
+
+.toggle-password-btn:hover {
+  background-color: #444;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.action-btn.edit {
+  color: #3498db;
+}
+
+.action-btn.delete {
+  color: #e74c3c;
+}
+
+.action-btn.add {
+  color: #0f0;
+  background-color: rgba(0, 255, 0, 0.1);
+  border: 1px solid #0f0;
+  padding: 8px 15px;
+}
+
+.action-btn:hover {
+  opacity: 0.8;
+}
+
+.delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: rgba(231, 76, 60, 0.1);
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.delete-confirm span {
+  color: #e74c3c;
+  font-size: 0.9rem;
+}
+
+.confirm-yes,
+.confirm-no {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 2px;
+  font-size: 0.8rem;
+}
+
+.confirm-yes {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.confirm-no {
+  background-color: #333;
+  color: #ccc;
+}
+
+.toggle-btn {
+  background-color: #333;
+  color: #ccc;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
+
+.toggle-btn:hover {
+  background-color: #444;
+}
+
+.file-manager {
+  margin-top: 15px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.file-manager-paths,
+.file-manager-files {
+  margin-bottom: 20px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.cancel-btn,
+.save-btn {
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn {
+  background-color: transparent;
+  color: #999;
+  border: 1px solid #333;
+}
+
+.cancel-btn:hover {
+  background-color: rgba(153, 153, 153, 0.1);
+  color: #fff;
+}
+
+.save-btn {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #0f0;
+  border: 1px solid #0f0;
+}
+
+.save-btn:hover {
+  background-color: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .objective-item,
+  .hint-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .objective-actions,
+  .hint-actions {
+    justify-content: flex-end;
+  }
+}

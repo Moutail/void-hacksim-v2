@@ -1,0 +1,181 @@
+/* src/components/Dashboard/NewsFeed.css - Styles pour le composant d'actualités du dashboard */
+
+.news-feed-container {
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.news-feed-header {
+  padding: 15px;
+  background-color: #222;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #333;
+}
+
+.news-feed-header h2 {
+  margin: 0;
+  color: #0f0;
+  font-size: 1.2rem;
+}
+
+.view-all {
+  color: #999;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.view-all:hover {
+  color: #0f0;
+}
+
+.view-all i {
+  font-size: 0.8rem;
+  margin-left: 5px;
+}
+
+.news-feed-content {
+  padding: 15px;
+}
+
+.loading-news, .empty-news {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.loading-news .spinner {
+  border: 3px solid #333;
+  border-top: 3px solid #0f0;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.announcement-item {
+  background-color: #222;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #333;
+}
+
+.announcement-header {
+  padding: 12px 15px;
+  border-bottom: 1px solid #333;
+}
+
+.announcement-author {
+  display: flex;
+  align-items: center;
+}
+
+.author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.author-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.author-name {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-badge {
+  background-color: #ff5f56;
+  color: #fff;
+  font-size: 0.6rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: normal;
+}
+
+.announcement-time {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.announcement-content {
+  padding: 15px;
+  color: #e6e6e6;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.announcement-footer {
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #333;
+  background-color: #1a1a1a;
+}
+
+.reply-button {
+  color: #999;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.reply-button:hover {
+  color: #0f0;
+}
+
+.like-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.like-count i {
+  color: #ff5f56;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .news-feed-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .announcement-content {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+}

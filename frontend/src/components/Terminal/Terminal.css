@@ -1,0 +1,167 @@
+/* src/components/Terminal/Terminal.css */
+.terminal {
+  width: 100%;
+  height: 600px;
+  background-color: #0a0a0a;
+  border-radius: 8px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+  color: #e6e6e6;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.control-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.control-dot.red {
+  background-color: #ff5f56;
+}
+
+.control-dot.yellow {
+  background-color: #ffbd2e;
+}
+
+.control-dot.green {
+  background-color: #27c93f;
+}
+
+.terminal-content {
+  flex: 1;
+  padding: 15px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.terminal-line {
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-line.system {
+  color: #0f0;
+  font-weight: bold;
+}
+
+.terminal-line.command .prompt {
+  color: #0f0;
+}
+
+.terminal-line.output {
+  color: #e6e6e6;
+}
+
+.terminal-line.error {
+  color: #ff3860;
+}
+
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.prompt {
+  color: #0f0;
+  margin-right: 5px;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #e6e6e6;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  outline: none;
+  caret-color: #0f0;
+}
+
+.terminal-challenge-info {
+  padding: 10px 15px;
+  background-color: #1a1a1a;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.challenge-title {
+  font-weight: bold;
+  color: #0f0;
+}
+
+.challenge-progress {
+  color: #b3b3b3;
+}
+
+/* Animation du curseur clignotant */
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: #0f0;
+  animation: blink 1s infinite;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+/* Scrollbar pour le terminal */
+.terminal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.terminal-content::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+.terminal-content::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Style pour les effets de matrice */
+.matrix-line {
+  color: #0f0;
+  opacity: 0.5;
+  text-shadow: 0 0 5px #0f0;
+}

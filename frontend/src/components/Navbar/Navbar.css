@@ -1,0 +1,174 @@
+/* src/components/Navbar/Navbar.css - Styles pour la barre de navigation mise à jour */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 60px;
+  background-color: #111;
+  border-bottom: 1px solid #333;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-logo a {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+}
+
+.logo-text {
+  color: #0f0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.logo-subtitle {
+  color: #999;
+  font-size: 0.75rem;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.navbar-links a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #ccc;
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.navbar-links a:hover {
+  color: #fff;
+}
+
+.navbar-links a.active {
+  color: #0f0;
+}
+
+.navbar-links a i {
+  font-size: 1.2rem;
+  margin-bottom: 3px;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.navbar-profile {
+  position: relative;
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #ccc;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.profile-link:hover {
+  background-color: #222;
+}
+
+.profile-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.profile-name {
+  font-size: 0.9rem;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: #222;
+  border: 1px solid #333;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 150px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s;
+  z-index: 1000;
+}
+
+.navbar-profile:hover .profile-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.profile-dropdown a, .profile-dropdown button {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  color: #ccc;
+  text-decoration: none;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.profile-dropdown a:hover, .profile-dropdown button:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+.profile-dropdown i {
+  margin-right: 10px;
+  width: 16px;
+  text-align: center;
+}
+
+.logout-button {
+  background: none;
+  border: none;
+  border-top: 1px solid #333;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 10px;
+  }
+  
+  .navbar-links {
+    display: none;
+  }
+  
+  .profile-name {
+    display: none;
+  }
+}

@@ -1,0 +1,32 @@
+/* src/components/Challenge/ObjectivesList.css */
+.objectives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.objective-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px;
+  background-color: #1a1a1a;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.objective-item.completed {
+  background-color: rgba(0, 255, 0, 0.1);
+  border-left: 3px solid #0f0;
+}
+
+.objective-checkbox {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.objective-description {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}

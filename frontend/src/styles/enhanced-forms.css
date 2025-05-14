@@ -1,0 +1,224 @@
+/* src/styles/enhanced-forms.css */
+
+/* Styles de base pour les conteneurs */
+.login-container, .register-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 150px);
+  padding: 20px;
+  overflow: hidden; /* Empêche le débordement */
+}
+
+/* Styles pour l'animation matrix en arrière-plan */
+.matrix-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1; /* Toujours en arrière-plan */
+  pointer-events: none; /* Ne bloque pas les interactions */
+  background-color: rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+/* Effet radial vert matrix */
+.matrix-background::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0, 255, 0, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+/* Animation de pluie de caractères matrix (optionnel) */
+@keyframes matrixRain {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+.matrix-character {
+  position: absolute;
+  color: #0f0;
+  font-family: monospace;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  animation: matrixRain 3s linear infinite;
+}
+
+/* Styles pour les boîtes de formulaire */
+.login-box, .register-box {
+  width: 100%;
+  max-width: 450px;
+  background-color: rgba(26, 26, 26, 0.95); /* Légèrement transparent */
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 255, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  z-index: 2; /* Au-dessus de l'arrière-plan */
+  backdrop-filter: blur(5px); /* Effet de flou (navigateurs modernes) */
+}
+
+/* En-tête du formulaire */
+.login-header, .register-header {
+  text-align: center;
+  padding: 30px 20px;
+  background-color: rgba(17, 17, 17, 0.8);
+  border-bottom: 1px solid #333;
+  position: relative;
+}
+
+.login-header h1, .register-header h1 {
+  margin: 0;
+  color: #eee;
+  font-size: 2rem;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+.highlight {
+  color: #0f0;
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+/* Formulaires avec styles améliorés */
+.login-form, .register-form {
+  padding: 20px;
+  position: relative;
+  z-index: 3; /* Assure que le formulaire est au-dessus */
+}
+
+.form-group {
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #ccc;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  background-color: rgba(17, 17, 17, 0.8);
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 3;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #0f0;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+}
+
+/* Animation de focus pour les inputs */
+.form-group input:focus::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 6px;
+  border: 2px solid #0f0;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+/* Bouton stylisé */
+.login-button, .register-button {
+  width: 100%;
+  padding: 12px;
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #0f0;
+  border: 1px solid #0f0;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  position: relative;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.login-button:hover, .register-button:hover {
+  background-color: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+}
+
+/* Animation de clic */
+.login-button:active, .register-button:active {
+  transform: scale(0.98);
+}
+
+/* Effet de scintillement sur le bouton */
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(0, 255, 0, 0.5); }
+  100% { box-shadow: 0 0 5px rgba(0, 255, 0, 0.3); }
+}
+
+.login-button:hover, .register-button:hover {
+  animation: glow 1.5s infinite;
+}
+
+/* Pied de page du formulaire */
+.login-footer, .register-footer {
+  padding: 20px;
+  text-align: center;
+  background-color: rgba(17, 17, 17, 0.8);
+  border-top: 1px solid #333;
+  position: relative;
+  z-index: 2;
+}
+
+.login-footer p, .register-footer p {
+  margin: 0;
+  color: #aaa;
+}
+
+.login-footer a, .register-footer a {
+  color: #0f0;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.login-footer a:hover, .register-footer a:hover {
+  text-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+}
+
+/* Message d'erreur stylisé */
+.error-message {
+  background-color: rgba(255, 56, 96, 0.1);
+  color: #ff3860;
+  padding: 12px 15px;
+  margin: 20px;
+  border-radius: 4px;
+  border-left: 3px solid #ff3860;
+  position: relative;
+  z-index: 3;
+}

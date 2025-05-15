@@ -1,19 +1,22 @@
-// src/components/Forum/MessageItem.js - Solution complète
-
-import React, { useState, useEffect } from 'react';
+// src/components/Forum/MessageItem.js - Version corrigée
+import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '../../context/AuthContext';
 import './Forum.css';
 
-const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport }) => {
-  // Logging pour le débogage
-  useEffect(() => {
-    console.log("Message data:", message);
-    console.log("Current user:", currentUser);
-  }, [message, currentUser]);
-
-  // Hooks en premier
+const MessageItem = ({ 
+  message, 
+  currentUser, 
+  onDelete, 
+  onEdit, 
+  onLike, 
+  onReport,
+  onReply, // Nouvelle prop pour gérer les réponses
+  isInThread = false, // Si ce message est affiché dans un fil de discussion
+  isHighlighted = false // Pour mettre en évidence les nouveaux messages
+}) => {
+  // États locaux
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message?.content || '');
@@ -26,7 +29,10 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
     return null;
   }
   
-  // Vérifications d'identité plus robustes
+  // Vérifier si l'utilisateur courant est mentionné dans le message
+  const isMentioned = message.content.includes(`@${currentUser.username}`);
+  
+  // Vérifications d'identité robustes
   const isAuthor = currentUser && 
     (currentUser.id === message.author._id || 
      currentUser._id === message.author._id ||
@@ -35,10 +41,8 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
   
   const isAdmin = currentUser && currentUser.role === 'admin';
   
-  // Un utilisateur ne peut modifier QUE ses propres messages
+  // Permissions
   const canEdit = isAuthor;
-  
-  // Un admin peut supprimer n'importe quel message, mais un utilisateur ne peut supprimer que les siens
   const canDelete = isAuthor || isAdmin;
   
   // Formatage de la date
@@ -64,7 +68,9 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
   // Gestion du formulaire d'édition
   const handleSubmit = (e) => {
     e.preventDefault();
+    
     if (editContent.trim() === '') return;
+    
     onEdit(editContent);
     setIsEditing(false);
   };
@@ -76,20 +82,19 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
   };
 
   // Gestion de la suppression
-    const handleDelete = () => {
-    // Vérifier si le message a été supprimé entre-temps
+  const handleDelete = () => {
     if (!message || !message._id) {
-        console.error("Message déjà supprimé ou invalide");
-        return;
+      console.error("Message déjà supprimé ou invalide");
+      return;
     }
     
     if (showDeleteConfirm) {
-        onDelete();
-        setShowDeleteConfirm(false);
+      onDelete();
+      setShowDeleteConfirm(false);
     } else {
-        setShowDeleteConfirm(true);
+      setShowDeleteConfirm(true);
     }
-    };
+  };
 
   // Annulation de la suppression
   const cancelDelete = (e) => {
@@ -97,8 +102,32 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
     setShowDeleteConfirm(false);
   };
   
+  // Gestion des réponses
+  const handleReply = () => {
+    if (onReply) {
+      onReply(message);
+    }
+  };
+  
   return (
-    <div className={`message-item ${message.isAnnouncement ? 'announcement' : ''}`}>
+    <div className={`message-item ${message.isAnnouncement ? 'announcement' : ''}
+                    ${isMentioned ? 'mentioned' : ''}
+                    ${isHighlighted ? 'highlighted' : ''}
+                    ${message.replyTo ? 'is-reply' : ''}`}>
+      {/* Si c'est une réponse, afficher la référence au message parent */}
+      {message.replyTo && !isInThread && (
+        <div className="reply-reference">
+          <span>En réponse à </span>
+          <span className="reply-author">{message.replyTo.author?.username || 'un message'}</span>
+          <span className="reply-preview">
+            {message.replyTo.content?.length > 50 
+              ? message.replyTo.content.substring(0, 50) + '...' 
+              : message.replyTo.content || 'Message non disponible'
+            }
+          </span>
+        </div>
+      )}
+      
       <div className="message-avatar">
         <div 
           className="avatar" 
@@ -118,21 +147,12 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
           </span>
           <span className="message-time">{formatDate(message.createdAt)}</span>
           
-          {/* Bouton de modération explicite pour les administrateurs */}
+          {/* Bouton de modération pour les administrateurs */}
           {isAdmin && !isAuthor && (
             <button 
               className="mod-options-button"
               onClick={() => setShowModOptions(!showModOptions)}
               title="Options de modération"
-              style={{ 
-                background: '#ff5f56', 
-                color: 'white', 
-                border: 'none',
-                borderRadius: '4px',
-                padding: '4px 8px',
-                marginLeft: '10px',
-                cursor: 'pointer'
-              }}
             >
               <i className="fas fa-shield-alt"></i> Modérer
             </button>
@@ -212,10 +232,10 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
             )}
             
             <div className="message-actions">
-              {/* Bouton J'aime avec étiquette explicite */}
+              {/* Bouton J'aime avec étiquette */}
               <button 
                 className={`like-button ${hasLiked ? 'liked' : ''}`}
-                onClick={onLike}
+                onClick={() => onLike(message._id)}
                 title={hasLiked ? "Ne plus aimer" : "J'aime"}
               >
                 <i className="fas fa-heart"></i>
@@ -224,6 +244,18 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
                   <span className="like-count">{message.likes.length}</span>
                 )}
               </button>
+              
+              {/* Bouton Répondre */}
+              {!isInThread && (
+                <button 
+                  className="reply-button"
+                  onClick={handleReply}
+                  title="Répondre à ce message"
+                >
+                  <i className="fas fa-reply"></i>
+                  <span className="button-label">Répondre</span>
+                </button>
+              )}
               
               {/* Options pour l'auteur uniquement */}
               {canEdit && (
@@ -255,6 +287,7 @@ const MessageItem = ({ message, currentUser, onDelete, onEdit, onLike, onReport 
                   onClick={() => {
                     const reason = prompt("Raison du signalement :");
                     if (reason) {
+                      onReport && onReport(message._id, reason);
                       alert(`Message signalé. Merci de votre vigilance.`);
                     }
                   }}

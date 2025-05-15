@@ -1,0 +1,52 @@
+services:
+  # Service Backend
+  - type: web
+    name: void-hacksim-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        fromService:
+          name: void-hacksim-frontend
+          type: web
+          property: url
+      - key: CLIENT_URL
+        fromService:
+          name: void-hacksim-frontend
+          type: web
+          property: url
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: MONGO_URI
+        sync: false
+
+  # Service Frontend
+  - type: web
+    name: void-hacksim-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    pullRequestPreviewsEnabled: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /manifest.json
+        name: Content-Type
+        value: application/json
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          name: void-hacksim-backend
+          type: web
+          property: url

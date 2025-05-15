@@ -63,7 +63,41 @@ router.get('/', authMiddleware, async (req, res) => {
 // POST - Créer un nouveau message
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { content, channel = 'general', isAnnouncement = false } = req.body;
+     let { content, channel = 'general', isAnnouncement = false, replyTo = null } = req.body;
+    
+     // Vérification et normalisation du contenu
+    if (typeof content !== 'string') {
+      // Si content n'est pas une chaîne, essayer de le convertir
+      try {
+        if (content && typeof content === 'object' && content.content) {
+          // Si c'est un objet avec une propriété content, utiliser cette valeur
+          content = content.content;
+        } else {
+          // Sinon, essayer de convertir en chaîne
+          content = String(content);
+        }
+      } catch (e) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Le contenu du message doit être une chaîne de caractères'
+        });
+      }
+    }
+
+    // Vérifier le contenu
+    if (!content || content.trim() === '') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Le contenu du message est requis'
+      });
+    }
+    // Vérifier que content est une chaîne
+    if (typeof content !== 'string') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Le contenu du message doit être une chaîne de caractères'
+      });
+    }
     
     // Vérifier le contenu
     if (!content || content.trim() === '') {
@@ -81,12 +115,22 @@ router.post('/', authMiddleware, async (req, res) => {
       });
     }
     
+    
+    // Seuls les admins peuvent créer des annonces
+    if (isAnnouncement && req.user.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seuls les administrateurs peuvent créer des annonces'
+      });
+    }
+    
     // Créer le message
     const message = new Message({
       author: req.user.id,
-      content,
+      content: content.trim(),
       channel,
-      isAnnouncement
+      isAnnouncement,
+      replyTo
     });
     
     // Extraire les mentions (@username)
@@ -376,6 +420,111 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       status: 'error',
       message: 'Erreur lors de la suppression du message',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET - Récupérer les réponses à un message (Thread)
+router.get('/thread/:id', authMiddleware, async (req, res) => {
+  try {
+    // Récupérer l'ID du message parent
+    const parentId = req.params.id;
+    
+    // Vérifier que le message parent existe
+    const parentMessage = await Message.findById(parentId);
+    
+    if (!parentMessage) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message parent non trouvé'
+      });
+    }
+    
+    // Récupérer toutes les réponses à ce message
+    const replies = await Message.find({ replyTo: parentId })
+      .sort({ createdAt: 1 })
+      .populate('author', 'username role')
+      .populate('mentions', 'username')
+      .lean();
+    
+    res.json({
+      status: 'success',
+      data: replies
+    });
+  } catch (error) {
+    console.error('Erreur lors de la récupération du fil de discussion:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erreur lors de la récupération du fil de discussion'
+    });
+  }
+});
+
+// POST - Signaler un message
+router.post('/:id/report', authMiddleware, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const messageId = req.params.id;
+    
+    // Vérifier si le message existe
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Message non trouvé'
+      });
+    }
+    
+    // Vérifier si l'utilisateur a déjà signalé ce message
+    const alreadyReported = message.reports && 
+      message.reports.some(report => report.user.toString() === req.user.id);
+    
+    if (alreadyReported) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vous avez déjà signalé ce message'
+      });
+    }
+    
+    // Ajouter le signalement
+    message.reports = message.reports || [];
+    message.reports.push({
+      user: req.user.id,
+      reason,
+      date: new Date()
+    });
+    
+    await message.save();
+    
+    // Notifier les administrateurs
+    const admins = await User.find({ role: 'admin' }, '_id');
+    
+    // Créer des notifications pour tous les administrateurs
+    for (const admin of admins) {
+      const notification = new Notification({
+        recipient: admin._id,
+        type: 'system',
+        title: 'Message signalé',
+        content: `Un message a été signalé par ${req.user.username} pour la raison suivante: ${reason}`,
+        relatedTo: {
+          model: 'Message',
+          id: message._id
+        }
+      });
+      
+      await notification.save();
+    }
+    
+    res.json({
+      status: 'success',
+      message: 'Message signalé avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur lors du signalement du message:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erreur lors du signalement du message'
     });
   }
 });

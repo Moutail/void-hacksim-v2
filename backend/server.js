@@ -20,11 +20,15 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+// Configuration CORS pour Socket.io
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "https://Moutail                .github.io",
+    origin: "*", // Autoriser toutes les origines en développement
+    // Alternativement, spécifiez les domaines exacts :
+    // origin: ["https://void-hacksimulator.onrender.com", "http://localhost:3000"],
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
   }
 });
 

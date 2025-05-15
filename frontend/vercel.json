@@ -8,12 +8,6 @@
       "headers": [
         { "key": "Content-Type", "value": "application/json" }
       ]
-    },
-    {
-      "source": "/(.*).js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript" }
-      ]
     }
   ]
 }

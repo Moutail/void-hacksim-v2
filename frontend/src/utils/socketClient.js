@@ -1,6 +1,5 @@
-// src/utils/socketClient.js - Version améliorée avec support temps réel
+// src/utils/socketClient.js - Version mise à jour pour le déploiement
 import io from 'socket.io-client';
-import { API_URL } from '../config';
 
 let socket = null;
 let reconnectTimer = null;
@@ -19,17 +18,25 @@ export const initializeSocket = (userId, token, onStatusChange = null) => {
     socket.disconnect();
   }
 
-  // Créer une nouvelle connexion
+  // Déterminer l'URL de l'API à partir des variables d'environnement ou en déduire du domaine actuel
+  const API_URL = process.env.REACT_APP_API_URL || window.location.origin.replace('void-hacksimulator', 'void-hacksimulator-backend');
+  
+  console.log("Tentative de connexion Socket.io à:", API_URL);
+
+  // Créer une nouvelle connexion avec plus d'options
   socket = io(API_URL, {
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    reconnectionAttempts: Infinity
+    reconnectionAttempts: Infinity,
+    timeout: 20000,
+    transports: ['websocket', 'polling'], // Essayer d'abord websocket, puis polling
+    withCredentials: true
   });
 
   // Gestionnaires d'événements de connexion
   socket.on('connect', () => {
-    console.log('Socket.io connecté');
+    console.log('Socket.io connecté avec ID:', socket.id);
     
     // Authentifier l'utilisateur
     socket.emit('authenticate', { userId, token });
@@ -64,9 +71,10 @@ export const initializeSocket = (userId, token, onStatusChange = null) => {
     
     reconnectTimer = setTimeout(() => {
       if (socket) {
+        console.log("Tentative de reconnexion Socket.io...");
         socket.connect();
       }
-    }, 2000);
+    }, 3000);
   });
 
   socket.on('connect_error', (error) => {
@@ -79,7 +87,7 @@ export const initializeSocket = (userId, token, onStatusChange = null) => {
     notifyListeners('auth_error', error);
   });
 
-  // Configuration des événements liés aux messages
+  // Configuration des événements pour les messages et autres
   configureMessageEvents();
 
   return socket;
@@ -150,14 +158,34 @@ const startHeartbeat = () => {
   const heartbeatInterval = setInterval(() => {
     if (socket && socket.connected) {
       socket.emit('heartbeat');
+      console.log("Heartbeat Socket.io envoyé");
     } else {
       clearInterval(heartbeatInterval);
+      console.log("Heartbeat Socket.io arrêté (déconnecté)");
     }
   }, 30000); // 30 secondes
   
   // Nettoyer l'intervalle à la déconnexion
   socket.on('disconnect', () => {
     clearInterval(heartbeatInterval);
+    console.log("Heartbeat Socket.io arrêté (événement déconnexion)");
+  });
+};
+
+/**
+ * Notifie tous les écouteurs d'un événement
+ * @param {string} event - Nom de l'événement
+ * @param {*} data - Données de l'événement
+ */
+const notifyListeners = (event, data) => {
+  if (!listeners[event]) return;
+  
+  listeners[event].forEach(callback => {
+    try {
+      callback(data);
+    } catch (error) {
+      console.error(`Erreur dans un écouteur de l'événement '${event}':`, error);
+    }
   });
 };
 
@@ -184,9 +212,9 @@ export const subscribeToEvent = (event, callback) => {
 /**
  * Se désabonne d'un événement Socket.io
  * @param {string} event - Nom de l'événement
- * @param {Function} callback - Fonction de rappel
+ * @param {Function} callback - Fonction de rappel (optionnel)
  */
-export const unsubscribeFromEvent = (event, callback) => {
+export const unsubscribeFromEvent = (event, callback = null) => {
   if (!listeners[event]) return;
   
   if (callback) {
@@ -199,23 +227,6 @@ export const unsubscribeFromEvent = (event, callback) => {
 };
 
 /**
- * Notifie tous les écouteurs d'un événement
- * @param {string} event - Nom de l'événement
- * @param {*} data - Données de l'événement
- */
-const notifyListeners = (event, data) => {
-  if (!listeners[event]) return;
-  
-  listeners[event].forEach(callback => {
-    try {
-      callback(data);
-    } catch (error) {
-      console.error(`Erreur dans un écouteur de l'événement '${event}':`, error);
-    }
-  });
-};
-
-/**
  * Émet un événement Socket.io
  * @param {string} event - Nom de l'événement
  * @param {Object} data - Données à envoyer
@@ -225,7 +236,15 @@ export const emitEvent = (event, data) => {
     console.log(`Émission de l'événement '${event}':`, data);
     socket.emit(event, data);
   } else {
-    console.warn(`Tentative d'émission de l'événement '${event}' sur un socket déconnecté`);
+    console.warn(`Tentative d'émission de l'événement '${event}' sur un socket déconnecté`, data);
+    // Tentative de reconnexion et d'émission après connexion
+    if (socket) {
+      socket.connect();
+      socket.once('connect', () => {
+        console.log(`Reconnecté et émission de l'événement '${event}' retardée:`, data);
+        socket.emit(event, data);
+      });
+    }
   }
 };
 

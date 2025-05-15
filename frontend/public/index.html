@@ -9,66 +9,7 @@
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <title>VOID HackSimulator</title>
-     <style>
-  /* Styles d'urgence pour corriger l'écran noir */
-  body, html {
-    background-color: #f5f5f5 !important;
-    color: #333 !important;
-  }
-  
-  /* Force la visibilité de la page de login */
-  .login-container, .login-box, .login-form {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    color: #333 !important;
-    background-color: rgba(255, 255, 255, 0.9) !important;
-    z-index: 1000 !important;
-    position: relative !important;
-  }
-  
-  /* Styles spécifiques pour le texte de login */
-  .login-header h1, .login-header p, .login-form label, .login-footer p, .login-footer a {
-    color: #333 !important;
-    visibility: visible !important;
-  }
-  
-  /* Animation en arrière-plan */
-  #matrix-canvas {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: -1 !important;
-    opacity: 0.5 !important;
-    pointer-events: none !important;
-  }
-</style>
-
-<script>
-  // Script de correction pour l'écran noir
-  document.addEventListener('DOMContentLoaded', function() {
-    // Rediriger vers la page de login si on est sur la page d'accueil
-    if (window.location.pathname === '/' || window.location.pathname === '') {
-      window.location.href = '/login';
-    }
     
-    // Corriger les problèmes de canvas après un court délai
-    setTimeout(function() {
-      try {
-        var canvas = document.getElementById('matrix-canvas');
-        if (canvas) {
-          canvas.style.position = 'fixed';
-          canvas.style.top = '0';
-          canvas.style.left = '0';
-          canvas.style.zIndex = '-1';
-          canvas.style.pointerEvents = 'none';
-        }
-      } catch(e) {
-        console.error("Erreur lors de la correction du canvas:", e);
-      }
-    }, 500);
-  });
-</script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

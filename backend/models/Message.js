@@ -1,4 +1,4 @@
-// models/Message.js - Modèle pour les messages du forum
+// models/Message.js - Ajout du support pour les réponses
 const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
@@ -23,12 +23,28 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Message',
+    default: null
+  },
   attachments: [{
-    type: String  // URLs vers des fichiers attachés
+    type: String
   }],
   likes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  }],
+  reports: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    reason: String,
+    date: {
+      type: Date,
+      default: Date.now
+    }
   }],
   createdAt: {
     type: Date,
@@ -74,5 +90,11 @@ MessageSchema.methods.extractMentions = async function() {
   
   this.mentions = mentions;
 };
+
+// Ajout d'un index pour les recherches efficaces
+MessageSchema.index({ channel: 1, createdAt: -1 });
+MessageSchema.index({ author: 1 });
+MessageSchema.index({ replyTo: 1 });
+MessageSchema.index({ mentions: 1 });
 
 module.exports = mongoose.model('Message', MessageSchema);

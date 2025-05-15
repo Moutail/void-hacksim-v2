@@ -79,7 +79,7 @@ const App = () => {
   return (
     <AuthProvider>
       <PresenceProvider>
-        <Router basename={process.env.PUBLIC_URL}>
+        <Router basename="">
           <AppRoutes />
         </Router>
       </PresenceProvider>

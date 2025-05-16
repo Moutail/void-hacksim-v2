@@ -92,6 +92,23 @@ const handleConnection = (socket) => {
       socket.emit('auth_error', { message: 'Erreur d\'authentification' });
     }
   });
+
+   // Événement pour rejoindre la salle d'un défi
+  socket.on('join_challenge', (data) => {
+    const { challengeId } = data;
+    if (!socket.userId || !challengeId) return;
+    
+    // Faire rejoindre l'utilisateur dans la salle de ce défi
+    const roomName = `challenge:${challengeId}`;
+    socket.join(roomName);
+    console.log(`User ${socket.userId} a rejoint la salle ${roomName}`);
+    
+    // Informer l'utilisateur qu'il a rejoint la salle
+    socket.emit('joined_challenge', {
+      challengeId,
+      success: true
+    });
+  });
   
   // Mise à jour d'activité (heartbeat)
   socket.on('heartbeat', async () => {
@@ -582,6 +599,84 @@ const notifyAll = (notification) => {
   io.emit('notification', notification);
 };
 
+/**
+ * Permet à un utilisateur de rejoindre une salle de défi pour recevoir des mises à jour
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} challengeId - ID du défi
+ */
+const joinChallengeRoom = (userId, challengeId) => {
+  try {
+    const user = User.findById(userId);
+    if (!user) return;
+    
+    // Si l'utilisateur a un socket actif
+    if (user.socketId) {
+      const socket = io.sockets.sockets.get(user.socketId);
+      if (socket) {
+        // Faire rejoindre l'utilisateur dans la salle de ce défi
+        const roomName = `challenge:${challengeId}`;
+        socket.join(roomName);
+        console.log(`User ${userId} a rejoint la salle ${roomName}`);
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors de la rejointe à la salle de défi:', error);
+  }
+};
+
+/**
+ * Notifier la mise à jour d'objectifs dans un défi
+ * @param {string} challengeId - ID du défi
+ * @param {string} userId - ID de l'utilisateur qui a complété l'objectif
+ * @param {Array} completedObjectives - Objectifs nouvellement complétés
+ * @param {boolean} allObjectivesCompleted - Indique si tous les objectifs sont complétés
+ */
+const notifyChallengeObjectives = (challengeId, userId, completedObjectives, allObjectivesCompleted) => {
+  try {
+    // Construire les données à envoyer
+    const updateData = {
+      challengeId,
+      userId,
+      completedObjectives,
+      allObjectivesCompleted,
+      timestamp: new Date()
+    };
+    
+    // Vérifier si la salle existe
+    const roomName = `challenge:${challengeId}`;
+    const room = io.sockets.adapter.rooms.get(roomName);
+    
+    console.log(`[Socket.io] Tentative d'émission à la salle ${roomName}`);
+    console.log(`[Socket.io] La salle existe-t-elle? ${room ? 'OUI' : 'NON'}`);
+    console.log(`[Socket.io] Nombre de clients dans cette salle: ${room ? room.size : 0}`);
+    
+    // Envoyer à tous les utilisateurs dans la salle
+    io.to(roomName).emit('challenge_objectives_updated', updateData);
+    
+    // Émission de secours à tous les clients
+    io.emit('challenge_objectives_updated_global', updateData);
+    
+    console.log(`[Socket.io] Notification d'objectifs envoyée: ${JSON.stringify(updateData)}`);
+    
+    // Log détaillé des émissions
+    if (io.sockets) {
+      console.log(`[Socket.io] Nombre total de connexions actives: ${Object.keys(io.sockets.sockets).length}`);
+    }
+    
+    // Si tous les objectifs sont complétés, envoyer un événement spécial
+    if (allObjectivesCompleted) {
+      io.to(roomName).emit('challenge_completed', {
+        challengeId,
+        userId,
+        timestamp: new Date()
+      });
+      console.log(`Défi ${challengeId} complété par l'utilisateur ${userId}`);
+    }
+  } catch (error) {
+    console.error('[Socket.io] Erreur lors de la notification des objectifs de défi:', error);
+  }
+};
+
 module.exports = {
   initialize,
   getIO,
@@ -589,5 +684,7 @@ module.exports = {
   cleanupOnlineStatus,
   scheduleCleanup,
   notifyUser,
-  notifyAll
+  notifyAll,
+  joinChallengeRoom,
+  notifyChallengeObjectives
 };

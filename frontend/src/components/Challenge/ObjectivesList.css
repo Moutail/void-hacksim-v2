@@ -1,32 +1,98 @@
 /* src/components/Challenge/ObjectivesList.css */
+
+/* ObjectivesList.css optimisé avec des styles plus visibles pour les objectifs complétés */
+
 .objectives-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
+  margin: 15px 0;
+  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid #333;
 }
 
 .objective-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   padding: 10px;
-  background-color: #1a1a1a;
-  border-radius: 5px;
+  margin-bottom: 8px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
   transition: all 0.3s ease;
 }
 
+.objective-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Style pour les objectifs non complétés */
+.objective-item:not(.completed) {
+  border-left: 3px solid #ff3333;
+}
+
+/* Style pour les objectifs complétés */
 .objective-item.completed {
   background-color: rgba(0, 255, 0, 0.1);
   border-left: 3px solid #0f0;
 }
 
 .objective-checkbox {
-  margin-right: 10px;
-  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Assurer que les icônes sont visibles */
+.objective-checkbox i {
+  font-size: 18px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.completed-icon {
+  color: #0f0;
+}
+
+.uncompleted-icon {
+  color: #ff3333;
 }
 
 .objective-description {
-  flex: 1;
-  font-size: 0.9rem;
+  flex-grow: 1;
+  color: #ccc;
   line-height: 1.4;
+}
+
+.objective-item.completed .objective-description {
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Style pour le message 'aucun objectif' */
+.no-objectives {
+  padding: 15px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+}
+
+/* Animation pour les objectifs complétés */
+@keyframes completeObjective {
+  0% {
+    transform: translateX(0);
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    transform: translateX(5px);
+    background-color: rgba(0, 255, 0, 0.2);
+  }
+  100% {
+    transform: translateX(0);
+    background-color: rgba(0, 255, 0, 0.1);
+  }
+}
+
+.objective-item.completed {
+  animation: completeObjective 0.5s ease-out;
 }

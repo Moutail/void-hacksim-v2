@@ -1,27 +1,31 @@
-// routes/challenges.js
+// routes/challenges.js - Version améliorée avec prise en charge flexible des objectifs
+
 const express = require('express');
-const mongoose = require('mongoose');
-const Challenge = require('../models/Challenge');
-const User = require('../models/User');
-const Attempt = require('../models/Attempt');
-const { adminMiddleware } = require('../middleware/auth');
-
 const router = express.Router();
+const Challenge = require('../models/Challenge');
+const Attempt = require('../models/Attempt');
+const User = require('../models/User');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
-// Récupérer tous les défis actifs (pour les utilisateurs)
-router.get('/', async (req, res) => {
+// GET - Récupérer tous les défis
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const challenges = await Challenge.find({ active: true })
-      .select('title description level type points createdAt')
-      .sort({ createdAt: -1 });
+    const challenges = await Challenge.find({ active: true }).select('title description level type points');
     
-    // Obtenir les défis complétés par l'utilisateur
-    const user = await User.findById(req.user.id);
-    const completedChallengeIds = user.completedChallenges.map(id => id.toString());
+    // Récupérer les tentatives de l'utilisateur pour chaque défi
+    const completedChallenges = new Set();
+    const attempts = await Attempt.find({ 
+      user: req.user.id,
+      completed: true 
+    });
     
-    // Ajouter un indicateur de complétion pour chaque défi
+    attempts.forEach(attempt => {
+      completedChallenges.add(attempt.challenge.toString());
+    });
+    
+    // Ajouter l'information isCompleted à chaque défi
     const challengesWithStatus = challenges.map(challenge => {
-      const isCompleted = completedChallengeIds.includes(challenge._id.toString());
+      const isCompleted = completedChallenges.has(challenge._id.toString());
       return {
         ...challenge.toObject(),
         isCompleted
@@ -33,16 +37,17 @@ router.get('/', async (req, res) => {
       data: challengesWithStatus
     });
   } catch (error) {
-    console.error('Erreur de récupération des défis:', error);
+    console.error('Erreur lors de la récupération des défis:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Erreur lors de la récupération des défis'
+      message: 'Erreur lors de la récupération des défis',
+      details: error.message
     });
   }
 });
 
-// Récupérer un défi spécifique par ID
-router.get('/:id', async (req, res) => {
+// GET - Récupérer un défi spécifique
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const challenge = await Challenge.findById(req.params.id);
     
@@ -53,92 +58,73 @@ router.get('/:id', async (req, res) => {
       });
     }
     
-    // Vérifier si le défi est actif ou si l'utilisateur est admin
-    if (!challenge.active && req.user.role !== 'admin') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Ce défi n\'est pas disponible actuellement'
-      });
-    }
-    
-    // Vérifier si l'utilisateur a déjà une tentative en cours
+    // Trouver une tentative en cours ou créer une nouvelle
     let attempt = await Attempt.findOne({
       user: req.user.id,
-      challenge: req.params.id,
+      challenge: challenge._id,
       completed: false
-    });
+    }).sort({ startedAt: -1 });
     
-    // Si aucune tentative n'existe, en créer une nouvelle
+    // Si aucune tentative en cours, vérifier s'il y a une tentative complétée
     if (!attempt) {
-      attempt = new Attempt({
+      const completedAttempt = await Attempt.findOne({
         user: req.user.id,
-        challenge: req.params.id,
-        commandHistory: [],
-        objectivesCompleted: []
-      });
-      await attempt.save();
+        challenge: challenge._id,
+        completed: true
+      }).sort({ completedAt: -1 });
+      
+      if (completedAttempt) {
+        attempt = completedAttempt;
+      } else {
+        // Créer une nouvelle tentative
+        attempt = new Attempt({
+          user: req.user.id,
+          challenge: challenge._id,
+          startedAt: new Date()
+        });
+        
+        await attempt.save();
+      }
     }
     
-    // Créer des fichiers dans le système de fichiers utilisateur pour ce défi si nécessaire
-    if (Object.keys(challenge.initialFiles).length > 0) {
-      const user = await User.findById(req.user.id);
-      let userFilesUpdated = false;
+    // Récupérer la liste des objectifs complétés
+    const completedObjectiveIds = attempt.objectivesCompleted
+      ? attempt.objectivesCompleted.map(obj => obj.objectiveId)
+      : [];
+    
+    // Copier les objectifs pour éviter de modifier l'original
+    const objectivesWithStatus = challenge.objectives.map(objective => {
+      const objectiveObj = { ...objective.toObject() };
+      objectiveObj.completed = completedObjectiveIds.includes(objectiveObj._id.toString());
       
-      // Créer le dossier du défi s'il n'existe pas
-      const challengeFolder = `/missions/${challenge._id}`;
-      if (!user.filesSystem[challengeFolder]) {
-        user.filesSystem[challengeFolder] = [];
-        userFilesUpdated = true;
-        
-        // Ajouter le dossier du défi au répertoire missions s'il n'y est pas déjà
-        if (!user.filesSystem['/missions'].includes(challenge._id.toString())) {
-          user.filesSystem['/missions'].push(challenge._id.toString());
-        }
-      }
+      // Ne pas envoyer le code de validation au client
+      delete objectiveObj.validationFunction;
       
-      // Ajouter les fichiers du défi
-      for (const [path, files] of Object.entries(challenge.initialFiles)) {
-        const fullPath = `${challengeFolder}${path}`;
-        
-        if (!user.filesSystem[fullPath]) {
-          user.filesSystem[fullPath] = [...files];
-          userFilesUpdated = true;
-        }
-      }
-      
-      // Ajouter le contenu des fichiers
-      for (const [filePath, content] of Object.entries(challenge.initialFileContents)) {
-        const fullPath = `${challengeFolder}${filePath}`;
-        
-        if (!user.fileContents[fullPath]) {
-          user.fileContents[fullPath] = content;
-          userFilesUpdated = true;
-        }
-      }
-      
-      if (userFilesUpdated) {
-        await user.save();
-      }
-    }
+      return objectiveObj;
+    });
     
     res.json({
       status: 'success',
       data: {
-        challenge,
+        challenge: {
+          ...challenge.toObject(),
+          objectives: objectivesWithStatus
+        },
         attemptId: attempt._id
       }
     });
   } catch (error) {
-    console.error('Erreur de récupération du défi:', error);
+    console.error('Erreur lors de la récupération du défi:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Erreur lors de la récupération du défi'
+      message: 'Erreur lors de la récupération du défi',
+      details: error.message
     });
   }
 });
 
-// Valider une commande pour un défi
-router.post('/:id/command', async (req, res) => {
+// POST - Exécuter une commande pour un défi spécifique
+router.post('/:id/command', authMiddleware, async (req, res) => {
   try {
     const { command } = req.body;
     
@@ -149,8 +135,12 @@ router.post('/:id/command', async (req, res) => {
       });
     }
     
+    // Récupérer l'utilisateur
+    const user = await User.findById(req.user.id);
+    
     // Récupérer le défi
     const challenge = await Challenge.findById(req.params.id);
+    
     if (!challenge) {
       return res.status(404).json({
         status: 'error',
@@ -158,17 +148,18 @@ router.post('/:id/command', async (req, res) => {
       });
     }
     
-    // Récupérer la tentative en cours
+    // Trouver ou créer une tentative
     let attempt = await Attempt.findOne({
       user: req.user.id,
-      challenge: req.params.id,
+      challenge: challenge._id,
       completed: false
-    });
+    }).sort({ startedAt: -1 });
     
     if (!attempt) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Aucune tentative en cours trouvée'
+      attempt = new Attempt({
+        user: req.user.id,
+        challenge: challenge._id,
+        startedAt: new Date()
       });
     }
     
@@ -178,85 +169,104 @@ router.post('/:id/command', async (req, res) => {
       timestamp: new Date()
     });
     
-    // Vérifier si la commande complète un objectif
+    // Récupérer l'historique des commandes
+    const commandHistory = attempt.commandHistory.map(entry => entry.command);
+    
+    // Récupérer les objectifs déjà complétés
+    const completedObjectiveIds = attempt.objectivesCompleted
+      ? attempt.objectivesCompleted.map(obj => obj.objectiveId)
+      : [];
+    
+    // Vérifier si des objectifs sont complétés avec cette commande
     let objectivesUpdated = false;
-    let allObjectivesCompleted = true;
+    const newlyCompletedObjectives = [];
     
     for (const objective of challenge.objectives) {
       // Ignorer les objectifs déjà complétés
-      if (attempt.objectivesCompleted.some(obj => obj.objectiveId === objective._id.toString())) {
+      if (completedObjectiveIds.includes(objective._id.toString())) {
         continue;
       }
       
-      // Évaluer la fonction de validation
       try {
-        const validationFn = new Function('command', 'history', `
-          return (${objective.validationFunction})(command, history);
-        `);
+        // Vérifier si l'objectif est complété avec cette commande
+        const validationFunction = new Function('command', 'history', objective.validationFunction);
         
-        const isCompleted = validationFn(
-          command, 
-          attempt.commandHistory.map(h => h.command)
-        );
+        const isCompleted = validationFunction(command, commandHistory);
         
         if (isCompleted) {
-          attempt.objectivesCompleted.push({
-            objectiveId: objective._id,
+          console.log(`Objectif complété: ${objective.description}`);
+          objectivesUpdated = true;
+          
+          // Ajouter à la liste des objectifs nouvellement complétés
+          newlyCompletedObjectives.push({
+            objectiveId: objective._id.toString(),
             completedAt: new Date()
           });
-          objectivesUpdated = true;
-        } else {
-          allObjectivesCompleted = false;
         }
       } catch (error) {
-        console.error('Erreur dans la fonction de validation:', error);
-        allObjectivesCompleted = false;
+        console.error(`Erreur lors de la validation de l'objectif "${objective.description}":`, error);
       }
     }
     
-    // Si tous les objectifs sont complétés, marquer la tentative comme terminée
-    if (allObjectivesCompleted && objectivesUpdated) {
-      attempt.completed = true;
-      attempt.completedAt = new Date();
-      attempt.score = challenge.points;
+    // Mettre à jour les objectifs complétés
+    if (newlyCompletedObjectives.length > 0) {
+      attempt.objectivesCompleted = [
+        ...attempt.objectivesCompleted || [],
+        ...newlyCompletedObjectives
+      ];
       
-      // Mettre à jour le score de l'utilisateur et ajouter le défi aux défis complétés
-      const user = await User.findById(req.user.id);
+      // Vérifier si tous les objectifs sont complétés
+      const allObjectivesCompleted = challenge.objectives.length === 
+        attempt.objectivesCompleted.length;
       
-      if (!user.completedChallenges.includes(challenge._id)) {
-        user.completedChallenges.push(challenge._id);
-        user.score += challenge.points;
+      if (allObjectivesCompleted && !attempt.completed) {
+        // Marquer la tentative comme terminée
+        attempt.completed = true;
+        attempt.completedAt = new Date();
+        attempt.score = challenge.points;
+        
+        // Mettre à jour le score de l'utilisateur
+        user.score = (user.score || 0) + challenge.points;
+        
+        // Ajouter le défi aux défis complétés
+        if (!user.completedChallenges.includes(challenge._id)) {
+          user.completedChallenges.push(challenge._id);
+        }
+        
         await user.save();
       }
     }
     
+    // Sauvegarder la tentative
     await attempt.save();
     
+    // Traiter la commande et renvoyer le résultat
     res.json({
       status: 'success',
       data: {
         objectivesUpdated,
-        allObjectivesCompleted,
-        objectivesCompleted: attempt.objectivesCompleted
+        objectivesCompleted: newlyCompletedObjectives,
+        allObjectivesCompleted: challenge.objectives.length === attempt.objectivesCompleted.length
       }
     });
   } catch (error) {
-    console.error('Erreur lors de la validation de commande:', error);
+    console.error('Erreur lors de l\'exécution de la commande:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Erreur lors de la validation de la commande'
+      message: 'Erreur lors de l\'exécution de la commande',
+      details: error.message
     });
   }
 });
 
-// Utiliser un indice pour un défi (coûte des points)
-router.post('/:id/hint/:hintIndex', async (req, res) => {
+// Récupérer un indice
+router.post('/:id/hint/:hintIndex', authMiddleware, async (req, res) => {
   try {
-    const challengeId = req.params.id;
-    const hintIndex = parseInt(req.params.hintIndex);
+    const { id, hintIndex } = req.params;
     
     // Récupérer le défi
-    const challenge = await Challenge.findById(challengeId);
+    const challenge = await Challenge.findById(id);
+    
     if (!challenge) {
       return res.status(404).json({
         status: 'error',
@@ -264,180 +274,78 @@ router.post('/:id/hint/:hintIndex', async (req, res) => {
       });
     }
     
-    // Vérifier que l'indice existe
-    if (!challenge.hints[hintIndex]) {
-      return res.status(404).json({
+    // Vérifier si l'indice existe
+    const index = parseInt(hintIndex);
+    
+    if (isNaN(index) || index < 0 || index >= challenge.hints.length) {
+      return res.status(400).json({
         status: 'error',
-        message: 'Indice non trouvé'
+        message: 'Indice invalide'
       });
     }
     
-    const hint = challenge.hints[hintIndex];
+    const hint = challenge.hints[index];
     
-    // Récupérer l'utilisateur
-    const user = await User.findById(req.user.id);
-    
-    // Vérifier que l'utilisateur a assez de points
-    if (user.score < hint.costPoints) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Vous n\'avez pas assez de points pour cet indice'
-      });
-    }
-    
-    // Récupérer la tentative en cours
+    // Récupérer ou créer une tentative
     let attempt = await Attempt.findOne({
       user: req.user.id,
-      challenge: challengeId,
+      challenge: challenge._id,
       completed: false
-    });
+    }).sort({ startedAt: -1 });
     
     if (!attempt) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Aucune tentative en cours trouvée'
+      attempt = new Attempt({
+        user: req.user.id,
+        challenge: challenge._id,
+        startedAt: new Date()
       });
     }
     
     // Vérifier si l'indice a déjà été utilisé
-    if (attempt.hintsUsed.some(h => h.hintId === hint._id.toString())) {
-      // Si l'indice a déjà été utilisé, pas besoin de déduire des points
-      return res.json({
-        status: 'success',
-        data: {
-          hint: hint.text
-        }
+    const hintAlreadyUsed = attempt.hintsUsed && 
+      attempt.hintsUsed.some(h => h.hintId === index.toString());
+    
+    if (!hintAlreadyUsed) {
+      // Déduire les points du score de l'utilisateur
+      const user = await User.findById(req.user.id);
+      
+      if (user.score < hint.costPoints) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Vous n'avez pas assez de points pour utiliser cet indice (${hint.costPoints} points nécessaires)`
+        });
+      }
+      
+      // Déduire les points
+      user.score -= hint.costPoints;
+      await user.save();
+      
+      // Marquer l'indice comme utilisé
+      if (!attempt.hintsUsed) {
+        attempt.hintsUsed = [];
+      }
+      
+      attempt.hintsUsed.push({
+        hintId: index.toString(),
+        usedAt: new Date()
       });
+      
+      await attempt.save();
     }
-    
-    // Déduire les points et enregistrer l'utilisation
-    user.score -= hint.costPoints;
-    await user.save();
-    
-    attempt.hintsUsed.push({
-      hintId: hint._id,
-      usedAt: new Date()
-    });
-    await attempt.save();
     
     res.json({
       status: 'success',
       data: {
         hint: hint.text,
-        newScore: user.score
+        costPoints: hintAlreadyUsed ? 0 : hint.costPoints
       }
     });
   } catch (error) {
-    console.error('Erreur lors de l\'utilisation d\'un indice:', error);
+    console.error('Erreur lors de la récupération de l\'indice:', error);
     res.status(500).json({
       status: 'error',
-      message: 'Erreur lors de l\'utilisation de l\'indice'
-    });
-  }
-});
-
-// ROUTES ADMIN
-
-// Créer un nouveau défi (admin seulement)
-router.post('/', adminMiddleware, async (req, res) => {
-  try {
-    const {
-      title,
-      description,
-      level,
-      type,
-      instructions,
-      objectives,
-      initialFiles,
-      initialFileContents,
-      points,
-      hints,
-      active
-    } = req.body;
-    
-    const challenge = new Challenge({
-      title,
-      description,
-      level,
-      type,
-      instructions,
-      objectives: objectives || [],
-      initialFiles: initialFiles || {},
-      initialFileContents: initialFileContents || {},
-      points: points || 100,
-      hints: hints || [],
-      active: active !== undefined ? active : true,
-      createdBy: req.user.id
-    });
-    
-    await challenge.save();
-    
-    res.status(201).json({
-      status: 'success',
-      data: challenge
-    });
-  } catch (error) {
-    console.error('Erreur lors de la création du défi:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Erreur lors de la création du défi'
-    });
-  }
-});
-
-// Modifier un défi existant (admin seulement)
-router.put('/:id', adminMiddleware, async (req, res) => {
-  try {
-    const challenge = await Challenge.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!challenge) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Défi non trouvé'
-      });
-    }
-    
-    res.json({
-      status: 'success',
-      data: challenge
-    });
-  } catch (error) {
-    console.error('Erreur lors de la modification du défi:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Erreur lors de la modification du défi'
-    });
-  }
-});
-
-// Supprimer un défi (admin seulement)
-router.delete('/:id', adminMiddleware, async (req, res) => {
-  try {
-    const challenge = await Challenge.findByIdAndDelete(req.params.id);
-    
-    if (!challenge) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Défi non trouvé'
-      });
-    }
-    
-    // Supprimer également toutes les tentatives associées
-    await Attempt.deleteMany({ challenge: req.params.id });
-    
-    res.json({
-      status: 'success',
-      message: 'Défi supprimé avec succès'
-    });
-  } catch (error) {
-    console.error('Erreur lors de la suppression du défi:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Erreur lors de la suppression du défi'
+      message: 'Erreur lors de la récupération de l\'indice',
+      details: error.message
     });
   }
 });

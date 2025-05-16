@@ -1,10 +1,11 @@
-// src/components/Terminal/Terminal.js - Mise à jour avec effets spéciaux
+// src/components/Terminal/Terminal.js - Version mise à jour pour le service de terminal
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import './Terminal.css';
 
-// Importer les composants d'effets
+// Importer les composants d'effets (assurez-vous que ces composants existent)
 import { 
   DownloadSimulation, 
   HackingEffect,
@@ -12,12 +13,12 @@ import {
   ExploitEffect
 } from '../Effects';
 
-const Terminal = ({ challenge, onCommandExecute }) => {
+const Terminal = ({ challenge, onCommandExecute, currentDirectory: initialDirectory, attemptId }) => {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState([]);
   const [commandHistory, setCommandHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [currentDirectory, setCurrentDirectory] = useState('/');
+  const [currentDirectory, setCurrentDirectory] = useState(initialDirectory || '/');
   const [filesystem, setFilesystem] = useState({});
   const [loading, setLoading] = useState(false);
   const [specialEffect, setSpecialEffect] = useState(null);
@@ -29,17 +30,29 @@ const Terminal = ({ challenge, onCommandExecute }) => {
   useEffect(() => {
     const initializeTerminal = async () => {
       try {
-        const response = await api.get('/api/terminal/filesystem');
-        
-        if (response.data.status === 'success') {
-          setFilesystem(response.data.data.filesystem);
-          setCurrentDirectory(response.data.data.currentDirectory);
+        // Si nous sommes dans le contexte d'un défi
+        if (challenge && attemptId) {
+          const response = await api.get(`/api/terminal/challenge/${challenge._id}`);
           
-          // Message de bienvenue
-          setHistory([
-            {
-              type: 'system',
-              content: `
+          if (response.data.status === 'success') {
+            setFilesystem(response.data.data.filesystem);
+            setCurrentDirectory(response.data.data.currentDirectory || '/');
+          }
+        } else {
+          // Terminal normal
+          const response = await api.get('/api/terminal/filesystem');
+          
+          if (response.data.status === 'success') {
+            setFilesystem(response.data.data.filesystem);
+            setCurrentDirectory(response.data.data.currentDirectory || '/');
+          }
+        }
+        
+        // Message de bienvenue
+        setHistory([
+          {
+            type: 'system',
+            content: `
   ██╗   ██╗ ██████╗ ██╗██████╗     ████████╗███████╗██████╗ ███╗   ███╗██╗███╗   ██╗ █████╗ ██╗     
   ██║   ██║██╔═══██╗██║██╔══██╗    ╚══██╔══╝██╔════╝██╔══██╗████╗ ████║██║████╗  ██║██╔══██╗██║     
   ██║   ██║██║   ██║██║██║  ██║       ██║   █████╗  ██████╔╝██╔████╔██║██║██╔██╗ ██║███████║██║     
@@ -50,9 +63,8 @@ const Terminal = ({ challenge, onCommandExecute }) => {
   Système Terminal VOID v1.0 - Sécurisé
   Tapez 'help' pour voir les commandes disponibles
               `
-            }
-          ]);
-        }
+          }
+        ]);
       } catch (error) {
         console.error('Erreur lors de l\'initialisation du terminal:', error);
         setHistory([
@@ -65,7 +77,14 @@ const Terminal = ({ challenge, onCommandExecute }) => {
     };
     
     initializeTerminal();
-  }, []);
+  }, [challenge, attemptId]);
+
+  // Mettre à jour le répertoire courant si la propriété change
+  useEffect(() => {
+    if (initialDirectory && initialDirectory !== currentDirectory) {
+      setCurrentDirectory(initialDirectory);
+    }
+  }, [initialDirectory]);
 
   // Focus sur l'input lorsque l'utilisateur clique sur le terminal
   useEffect(() => {
@@ -176,16 +195,26 @@ const Terminal = ({ challenge, onCommandExecute }) => {
         await new Promise(resolve => {
           setTimeout(async () => {
             try {
+              // Exécuter la commande en incluant les infos du défi si on est dans un défi
               const response = await api.post('/api/terminal/execute', {
                 command,
-                currentDirectory
+                currentDirectory,
+                challengeId: challenge ? challenge._id : null,
+                attemptId: attemptId
               });
               
               if (response.data.status === 'success') {
                 const result = response.data.data;
                 
-                // Mettre à jour le répertoire courant si changé
-                if (result.newDirectory !== currentDirectory) {
+                // Mettre à jour le système de fichiers et le répertoire courant
+                if (response.data.filesystem) {
+                  console.log("Mise à jour du système de fichiers:", response.data.filesystem);
+                  setFilesystem(response.data.filesystem);
+                }
+                
+                if (response.data.currentDirectory) {
+                  setCurrentDirectory(response.data.currentDirectory);
+                } else if (result.newDirectory !== currentDirectory) {
                   setCurrentDirectory(result.newDirectory);
                 }
                 
@@ -204,7 +233,10 @@ const Terminal = ({ challenge, onCommandExecute }) => {
                 
                 // Si la commande est liée au défi en cours, notifier le composant parent
                 if (challenge && onCommandExecute) {
-                  onCommandExecute(command);
+                  console.log("Notifiant le parent de l'exécution de la commande:", command);
+                  console.log("Résultat:", result);
+                  
+                  onCommandExecute(result);
                 }
               }
             } catch (error) {
@@ -226,16 +258,32 @@ const Terminal = ({ challenge, onCommandExecute }) => {
         });
       } else {
         // Exécution normale sans effet spécial
+        console.log("Exécutant la commande:", command);
+        console.log("Contexte:", {
+          currentDirectory,
+          challengeId: challenge ? challenge._id : null, 
+          attemptId
+        });
+        
         const response = await api.post('/api/terminal/execute', {
           command,
-          currentDirectory
+          currentDirectory,
+          challengeId: challenge ? challenge._id : null,
+          attemptId: attemptId
         });
         
         if (response.data.status === 'success') {
           const result = response.data.data;
           
-          // Mettre à jour le répertoire courant si changé
-          if (result.newDirectory !== currentDirectory) {
+          // Mettre à jour le système de fichiers et le répertoire courant
+          if (response.data.filesystem) {
+            console.log("Mise à jour du système de fichiers:", response.data.filesystem);
+            setFilesystem(response.data.filesystem);
+          }
+          
+          if (response.data.currentDirectory) {
+            setCurrentDirectory(response.data.currentDirectory);
+          } else if (result.newDirectory !== currentDirectory) {
             setCurrentDirectory(result.newDirectory);
           }
           
@@ -254,7 +302,10 @@ const Terminal = ({ challenge, onCommandExecute }) => {
           
           // Si la commande est liée au défi en cours, notifier le composant parent
           if (challenge && onCommandExecute) {
-            onCommandExecute(command);
+            console.log("Notifiant le parent de l'exécution de la commande:", command);
+            console.log("Résultat:", result);
+            
+            onCommandExecute(result);
           }
         }
         
@@ -374,6 +425,15 @@ const Terminal = ({ challenge, onCommandExecute }) => {
     }
   };
 
+  // Calculer le nombre d'objectifs complétés si challenge existe
+  const completedObjectivesCount = challenge 
+    ? challenge.objectives.filter(obj => obj.completed).length 
+    : 0;
+  
+  const totalObjectivesCount = challenge 
+    ? challenge.objectives.length 
+    : 0;
+
   return (
     <div className="terminal" ref={terminalRef}>
       <div className="terminal-header">
@@ -427,7 +487,7 @@ const Terminal = ({ challenge, onCommandExecute }) => {
         <div className="terminal-challenge-info">
           <div className="challenge-title">{challenge.title}</div>
           <div className="challenge-progress">
-            {challenge.objectives.filter(obj => obj.completed).length} / {challenge.objectives.length} objectifs complétés
+            {completedObjectivesCount} / {totalObjectivesCount} objectifs complétés
           </div>
         </div>
       )}

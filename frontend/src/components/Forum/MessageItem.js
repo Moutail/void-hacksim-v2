@@ -118,12 +118,17 @@ const MessageItem = ({
       {message.replyTo && !isInThread && (
         <div className="reply-reference">
           <span>En réponse à </span>
-          <span className="reply-author">{message.replyTo.author?.username || 'un message'}</span>
+          <span className="reply-author">
+            {message.replyTo && message.replyTo.author ? 
+              message.replyTo.author.username : 
+              'un message'}
+          </span>
           <span className="reply-preview">
-            {message.replyTo.content?.length > 50 
-              ? message.replyTo.content.substring(0, 50) + '...' 
-              : message.replyTo.content || 'Message non disponible'
-            }
+            {message.replyTo && message.replyTo.content ? 
+              (message.replyTo.content.length > 50 
+                ? message.replyTo.content.substring(0, 50) + '...' 
+                : message.replyTo.content) 
+              : 'Message non disponible'}
           </span>
         </div>
       )}

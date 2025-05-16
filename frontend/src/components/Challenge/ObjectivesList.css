@@ -1,91 +1,34 @@
 /* src/components/Challenge/ObjectivesList.css */
 
-/* ObjectivesList.css optimisé avec des styles plus visibles pour les objectifs complétés */
-
 .objectives-list {
   margin: 15px 0;
-  padding: 10px;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  border: 1px solid #333;
 }
 
 .objective-item {
   display: flex;
-  align-items: center;
-  padding: 10px;
-  margin-bottom: 8px;
-  background-color: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
+  align-items: flex-start;
+  background-color: rgba(0, 0, 0, 0.2);
+  margin-bottom: 10px;
+  padding: 12px 15px;
+  border-radius: 5px;
+  border-left: 3px solid #ff3333;
   transition: all 0.3s ease;
 }
 
-.objective-item:last-child {
-  margin-bottom: 0;
-}
-
-/* Style pour les objectifs non complétés */
-.objective-item:not(.completed) {
-  border-left: 3px solid #ff3333;
-}
-
-/* Style pour les objectifs complétés */
 .objective-item.completed {
   background-color: rgba(0, 255, 0, 0.1);
   border-left: 3px solid #0f0;
 }
 
-.objective-checkbox {
-  flex-shrink: 0;
-  margin-right: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Assurer que les icônes sont visibles */
-.objective-checkbox i {
-  font-size: 18px;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.completed-icon {
-  color: #0f0;
-}
-
-.uncompleted-icon {
-  color: #ff3333;
-}
-
-.objective-description {
-  flex-grow: 1;
-  color: #ccc;
-  line-height: 1.4;
-}
-
-.objective-item.completed .objective-description {
-  color: #fff;
-  font-weight: 500;
-}
-
-/* Style pour le message 'aucun objectif' */
-.no-objectives {
-  padding: 15px;
-  text-align: center;
-  color: #888;
-  font-style: italic;
-}
-
 /* Animation pour les objectifs complétés */
-@keyframes completeObjective {
+@keyframes objectiveCompleted {
   0% {
     transform: translateX(0);
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.2);
   }
   50% {
     transform: translateX(5px);
-    background-color: rgba(0, 255, 0, 0.2);
+    background-color: rgba(0, 255, 0, 0.3);
   }
   100% {
     transform: translateX(0);
@@ -94,5 +37,50 @@
 }
 
 .objective-item.completed {
-  animation: completeObjective 0.5s ease-out;
+  animation: objectiveCompleted 0.5s ease-out;
+}
+
+.objective-checkbox {
+  flex-shrink: 0;
+  width: 24px;
+  margin-right: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.objective-checkbox i {
+  font-size: 18px;
+  /* Important: forcer l'affichage des icônes */
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: inline-block !important;
+}
+
+.objective-description {
+  flex-grow: 1;
+  line-height: 1.4;
+  color: #ccc;
+  font-size: 14px;
+}
+
+.objective-item.completed .objective-description {
+  color: #fff;
+  font-weight: 500;
+}
+
+.objectives-empty {
+  padding: 15px;
+  text-align: center;
+  color: #aaa;
+  font-style: italic;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+}
+
+/* Fixer les icônes Font Awesome */
+.fa-check-circle, .fa-times-circle, .fas {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }

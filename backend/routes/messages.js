@@ -27,13 +27,21 @@ router.get('/', authMiddleware, async (req, res) => {
     // Calculer le nombre de messages à sauter
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Récupérer les messages
+    // Récupérer les messages avec populate complet, y compris pour les messages parents
     const messages = await Message.find({ channel })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .populate('author', 'username role')
       .populate('mentions', 'username')
+      .populate({
+        path: 'replyTo',
+        select: 'content author',
+        populate: {
+          path: 'author',
+          select: 'username'
+        }
+      })
       .lean();
     
     // Compter le nombre total de messages pour la pagination
@@ -66,6 +74,7 @@ router.post('/', authMiddleware, async (req, res) => {
      let { content, channel = 'general', isAnnouncement = false, replyTo = null } = req.body;
     
      // Vérification et normalisation du contenu
+    // Vérification et normalisation du contenu
     if (typeof content !== 'string') {
       // Si content n'est pas une chaîne, essayer de le convertir
       try {
@@ -84,11 +93,19 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     }
 
-    // Vérifier le contenu
+     // Vérifier le contenu
     if (!content || content.trim() === '') {
       return res.status(400).json({
         status: 'error',
         message: 'Le contenu du message est requis'
+      });
+    }
+
+    // Seuls les admins peuvent créer des annonces
+    if (isAnnouncement && req.user.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seuls les administrateurs peuvent créer des annonces'
       });
     }
     // Vérifier que content est une chaîne
@@ -143,6 +160,14 @@ router.post('/', authMiddleware, async (req, res) => {
     const populatedMessage = await Message.findById(message._id)
       .populate('author', 'username role')
       .populate('mentions', 'username email')
+      .populate({
+        path: 'replyTo',
+        select: 'content author',
+        populate: {
+          path: 'author',
+          select: 'username'
+        }
+      })
       .lean();
     
     // Créer des notifications pour les mentions
@@ -440,12 +465,23 @@ router.get('/thread/:id', authMiddleware, async (req, res) => {
       });
     }
     
-    // Récupérer toutes les réponses à ce message
+    // Récupérer toutes les réponses à ce message avec populate complet
     const replies = await Message.find({ replyTo: parentId })
       .sort({ createdAt: 1 })
       .populate('author', 'username role')
       .populate('mentions', 'username')
+      .populate({
+        path: 'replyTo',
+        select: 'content author',
+        populate: {
+          path: 'author',
+          select: 'username'
+        }
+      })
       .lean();
+    
+    // Ajouter des logs côté serveur pour débogage
+    console.log(`Thread ${parentId}: ${replies.length} réponses trouvées`);
     
     res.json({
       status: 'success',

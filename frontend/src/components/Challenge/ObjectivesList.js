@@ -1,24 +1,28 @@
-// src/components/Challenge/ObjectivesList.js - Version corrigée
+// src/components/Challenge/ObjectivesList.js - Version mise à jour
 
 import React, { useState, useEffect } from 'react';
 import './ObjectivesList.css';
 
-const ObjectivesList = ({ objectives, completedObjectives = [] }) => {
+const ObjectivesList = ({ objectives, completedObjectives = [], refreshKey = 0 }) => {
   const [refresh, setRefresh] = useState(0);
   
-  // Force un re-rendu quand les props changent
+  // Force un re-rendu quand les props changent ou quand refreshKey change
   useEffect(() => {
     console.log("ObjectivesList: props mises à jour");
     console.log("Objectifs:", objectives?.map(o => ({ id: o._id, desc: o.description, completed: o.completed })));
     console.log("Objectifs complétés:", completedObjectives);
+    console.log("Refresh Key:", refreshKey);
     
-    // Forcer un re-rendu après un court délai
+    // Forcer un re-rendu immédiatement
+    setRefresh(prev => prev + 1);
+    
+    // Et une seconde fois après un court délai pour s'assurer que les changements sont pris en compte
     const timer = setTimeout(() => {
       setRefresh(prev => prev + 1);
-    }, 50);
+    }, 100);
     
     return () => clearTimeout(timer);
-  }, [objectives, completedObjectives]);
+  }, [objectives, completedObjectives, refreshKey]);
 
   if (!objectives || objectives.length === 0) {
     return <div className="objectives-empty">Aucun objectif défini pour ce défi.</div>;
@@ -60,14 +64,6 @@ const ObjectivesList = ({ objectives, completedObjectives = [] }) => {
           </div>
         );
       })}
-      
-      {/* Statistiques pour débogage */}
-      <div className="objectives-stats" style={{ display: 'none' }}>
-        <div>Total: {objectives.length}</div>
-        <div>Complétés: {objectives.filter(o => o.completed).length}</div>
-        <div>Par IDs: {completedObjectives.length}</div>
-        <div>Refresh: {refresh}</div>
-      </div>
     </div>
   );
 };

@@ -1,7 +1,8 @@
-// src/components/Challenge/Challenge.js - Version améliorée avec persistance des objectifs
+// src/components/Challenge/Challenge.js - Version complète améliorée avec Socket.io
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import api from '../../utils/api';
 import Terminal from '../Terminal/Terminal';
 import ObjectivesList from './ObjectivesList';
@@ -19,6 +20,8 @@ const Challenge = () => {
   const [objectivesCompleted, setObjectivesCompleted] = useState([]);
   const [currentDirectory, setCurrentDirectory] = useState('/');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [socket, setSocket] = useState(null);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
 
   // Charger le défi et l'état actuel
   useEffect(() => {
@@ -34,6 +37,11 @@ const Challenge = () => {
           
           setChallenge(response.data.data.challenge);
           setAttempt(response.data.data.attemptId);
+          
+          // Vérifier si ce défi a déjà été complété par l'utilisateur
+          if (response.data.data.isAlreadyCompleted) {
+            setAlreadyCompleted(true);
+          }
           
           // Initialiser les objectifs complétés
           // Transformer les objectifs pour marquer ceux déjà complétés
@@ -58,64 +66,204 @@ const Challenge = () => {
     loadChallenge();
   }, [id]);
 
-  // Dans Challenge.js, ajoutez un polling régulier
-useEffect(() => {
-  if (!id || !attempt) return;
-  
-  // Fonction pour rafraîchir les données
-  const refreshChallengeData = async () => {
-    try {
-      const response = await api.get(`/api/challenges/${id}`);
+  // Initialiser et configurer Socket.io
+  useEffect(() => {
+    // Récupérer le socket global de l'application (ou en créer un nouveau)
+    const newSocket = window.globalSocket || io();
+    
+    // Si c'est un nouveau socket, le stocker globalement
+    if (!window.globalSocket) {
+      window.globalSocket = newSocket;
+    }
+    
+    setSocket(newSocket);
+    
+    // S'assurer que l'utilisateur est connecté au socket
+    const userId = localStorage.getItem('userId');
+    if (!newSocket.connected) {
+      newSocket.connect();
+      newSocket.emit('authenticate', { userId });
+    }
+    
+    // Rejoindre la salle du défi
+    if (id) {
+      newSocket.emit('join_challenge', { challengeId: id });
+      console.log(`Rejointe à la salle du défi ${id}`);
+    }
+    
+    // Écouter les mises à jour d'objectifs
+    const handleObjectivesUpdate = (data) => {
+       console.log('[Socket.io Client] Mise à jour des objectifs reçue:', data);
+       if (data.challengeId !== id) {
+      console.log('[Socket.io Client] Mise à jour ignorée, challengeId ne correspond pas:', data.challengeId, id);
+      return;
+    }
       
-      if (response.data.status === 'success') {
-        // Mettre à jour uniquement si nécessaire
-        const newCompletedIds = response.data.data.challenge.objectives
-          .filter(obj => obj.completed)
-          .map(obj => obj._id);
-          
-        // Vérifier s'il y a des changements
-        const hasChanges = newCompletedIds.length !== objectivesCompleted.length ||
-          newCompletedIds.some(id => !objectivesCompleted.includes(id));
-          
-        if (hasChanges) {
-          setObjectivesCompleted(newCompletedIds);
-          setChallenge(response.data.data.challenge);
-          console.log("Mise à jour automatique des objectifs:", newCompletedIds);
+      console.log('Mise à jour des objectifs reçue via socket:', data);
+      
+      // Mise à jour des objectifs complétés
+      const newlyCompletedIds = data.completedObjectives.map(obj => obj.objectiveId);
+      
+      setObjectivesCompleted(prevIds => {
+        const updatedIds = [...prevIds];
+        
+        // Ajouter les nouveaux objectifs complétés
+        newlyCompletedIds.forEach(objId => {
+          if (!updatedIds.includes(objId)) {
+            updatedIds.push(objId);
+          }
+        });
+        
+        console.log('Liste mise à jour des objectifs complétés via socket:', updatedIds);
+        return updatedIds;
+      });
+      
+      // Mettre à jour le state du challenge
+      setChallenge(prevChallenge => {
+        if (!prevChallenge) return null;
+        
+        const updatedObjectives = prevChallenge.objectives.map(obj => {
+          if (newlyCompletedIds.includes(obj._id)) {
+            return { ...obj, completed: true };
+          }
+          return obj;
+        });
+        
+        return { ...prevChallenge, objectives: updatedObjectives };
+      });
+      
+      // Force un re-rendu du composant ObjectivesList
+      setRefreshTrigger(prev => prev + 1);
+    };
+
+    
+    
+    // Écouter la complétion du défi
+    const handleChallengeCompleted = (data) => {
+      if (data.challengeId !== id) return;
+      
+      console.log('Défi complété via socket!', data);
+      
+      // Afficher le message de félicitations après un court délai
+      setTimeout(() => {
+        showChallengeCompleteModal();
+      }, 1500);
+    };
+
+     // Écouter l'événement de secours (global)
+  const handleGlobalObjectivesUpdate = (data) => {
+    console.log('[Socket.io Client] Mise à jour globale des objectifs reçue:', data);
+    
+    if (data.challengeId !== id) {
+      console.log('[Socket.io Client] Mise à jour globale ignorée, challengeId ne correspond pas');
+      return;
+    }
+    
+    // Même traitement que handleObjectivesUpdate
+    const newlyCompletedIds = data.completedObjectives.map(obj => obj.objectiveId);
+    
+    setObjectivesCompleted(prevIds => {
+      const updatedIds = [...prevIds];
+      newlyCompletedIds.forEach(objId => {
+        if (!updatedIds.includes(objId)) {
+          updatedIds.push(objId);
         }
-      }
-    } catch (error) {
-      console.error('Erreur lors du rafraîchissement des données:', error);
+      });
+      return updatedIds;
+    });
+    
+    setChallenge(prevChallenge => {
+      if (!prevChallenge) return null;
+      const updatedObjectives = prevChallenge.objectives.map(obj => {
+        if (newlyCompletedIds.includes(obj._id)) {
+          return { ...obj, completed: true };
+        }
+        return obj;
+      });
+      return { ...prevChallenge, objectives: updatedObjectives };
+    });
+    
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  // Vérifier la connexion Socket.io
+  const checkSocketConnection = () => {
+    console.log('[Socket.io Client] État de la connexion:', newSocket.connected);
+    
+    if (!newSocket.connected) {
+      console.log('[Socket.io Client] Tentative de reconnexion...');
+      newSocket.connect();
     }
   };
   
-  // Rafraîchir toutes les 3 secondes
-  const interval = setInterval(refreshChallengeData, 3000);
+  // Ajouter un intervalle pour vérifier la connexion périodiquement
+  const connectionInterval = setInterval(checkSocketConnection, 10000);
   
-  // Nettoyer l'intervalle
-  return () => clearInterval(interval);
-}, [id, attempt, objectivesCompleted.length]);
-
-  // Fonction pour forcer le rafraîchissement de tous les objectifs
-  const refreshObjectives = async () => {
+  // Écouter les événements de connexion
+  newSocket.on('connect', () => {
+    console.log('[Socket.io Client] Connecté!');
+    
+    // Rejoindre la salle immédiatement après connexion
+    newSocket.emit('join_challenge', { challengeId: id });
+    console.log(`[Socket.io Client] Demande de rejoindre la salle du défi ${id}`);
+  });
+  
+  newSocket.on('disconnect', () => {
+    console.log('[Socket.io Client] Déconnecté!');
+  });
+  
+  newSocket.on('connect_error', (error) => {
+    console.log('[Socket.io Client] Erreur de connexion:', error);
+  });
+    
+   // Ajouter les écouteurs d'événements
+  newSocket.on('challenge_objectives_updated', handleObjectivesUpdate);
+  newSocket.on('challenge_objectives_updated_global', handleGlobalObjectivesUpdate);
+  newSocket.on('challenge_completed', handleChallengeCompleted);
+    
+    // Fonction de nettoyage - retirer les écouteurs lors du démontage
+    return () => {
+       clearInterval(connectionInterval);
+        newSocket.off('challenge_objectives_updated', handleObjectivesUpdate);
+        newSocket.off('challenge_objectives_updated_global', handleGlobalObjectivesUpdate);
+        newSocket.off('challenge_completed', handleChallengeCompleted);
+        newSocket.off('connect');
+        newSocket.off('disconnect');
+        newSocket.off('connect_error');
+      
+      // Quitter la salle du défi
+      if (id) {
+        newSocket.emit('leave_challenge', { challengeId: id });
+      }
+    };
+  }, [id]); // Dépendance sur l'ID du défi
+  
+    // Fonction pour forcer le rafraîchissement de tous les objectifs
+    const refreshObjectives = async () => {
     try {
+      console.log(`[Refresh] Rafraîchissement des objectifs pour le défi ${id}`);
       const response = await api.get(`/api/challenges/${id}`);
       
       if (response.data.status === 'success') {
-        // Mettre à jour le challenge et les objectifs
-        setChallenge(response.data.data.challenge);
-        
-        // Actualiser les objectifs complétés
-        const completedIds = response.data.data.challenge.objectives
+        const newCompletedIds = response.data.data.challenge.objectives
           .filter(obj => obj.completed)
           .map(obj => obj._id);
         
-        setObjectivesCompleted(completedIds);
+        // Vérifier s'il y a des changements
+        const hasChanges = newCompletedIds.length !== objectivesCompleted.length ||
+          newCompletedIds.some(id => !objectivesCompleted.includes(id));
         
-        // Incrémenter le trigger pour forcer un re-rendu
-        setRefreshTrigger(prev => prev + 1);
+        if (hasChanges) {
+          console.log('[Refresh] Nouveaux objectifs complétés trouvés:', 
+            newCompletedIds.filter(id => !objectivesCompleted.includes(id)));
+            
+          setObjectivesCompleted(newCompletedIds);
+          setChallenge(response.data.data.challenge);
+          setRefreshTrigger(prev => prev + 1);
+        }
       }
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement des objectifs:', error);
+      console.error('[Refresh] Erreur lors du rafraîchissement des objectifs:', error);
     }
   };
 
@@ -141,6 +289,11 @@ useEffect(() => {
         // Mettre à jour le répertoire courant si nécessaire
         if (response.data.data.newDirectory !== currentDirectory) {
           setCurrentDirectory(response.data.data.newDirectory);
+        }
+        
+        // Mettre à jour le système de fichiers dans le Terminal
+        if (response.data.filesystem) {
+          console.log("Système de fichiers mis à jour reçu du serveur");
         }
         
         // Vérifier si des objectifs ont été complétés
@@ -179,13 +332,17 @@ useEffect(() => {
             return { ...prevChallenge, objectives: updatedObjectives };
           });
           
+          // Forcer le rafraîchissement du composant ObjectivesList
+          setRefreshTrigger(prev => prev + 1);
+          
           // Si tous les objectifs sont complétés, afficher un message de succès
           if (response.data.data.allObjectivesCompleted) {
-            setTimeout(() => {
-              showChallengeCompleteModal();
-            }, 1500);
-            // Rafraîchir automatiquement les objectifs
-          await refreshObjectives();
+            // Dans ce cas, nous laissons Socket.io gérer l'événement de complétion
+            // car l'événement sera envoyé par le serveur via socket
+            
+            // Néanmoins, nous pouvons rafraîchir les objectifs pour s'assurer
+            // que tout est bien synchronisé
+            await refreshObjectives();
           }
         }
         
@@ -211,8 +368,20 @@ useEffect(() => {
   const showChallengeCompleteModal = () => {
     // Cette fonction pourrait être implémentée avec un composant Modal personnalisé
     // Pour l'instant, on utilise une alerte simple
-    alert(`Félicitations ! Vous avez terminé le défi "${challenge.title}" !`);
-    navigate('/challenges');
+    let message = `Félicitations ! Vous avez terminé le défi "${challenge.title}" !`;
+    
+    if (alreadyCompleted) {
+      message += "\n\nVous aviez déjà terminé ce défi auparavant, aucun point supplémentaire n'a été attribué.";
+    } else {
+      message += `\n\nVous avez gagné ${challenge.points} points !`;
+    }
+    
+    alert(message);
+    
+    // Rediriger vers la liste des défis après un court délai
+    setTimeout(() => {
+      navigate('/challenges');
+    }, 2000);
   };
 
   // Récupérer un indice
@@ -267,6 +436,15 @@ useEffect(() => {
         </button>
       </div>
       
+      {alreadyCompleted && (
+        <div className="challenge-already-completed">
+          <div className="alert alert-info">
+            <i className="fas fa-info-circle"></i>
+            Vous avez déjà complété ce défi. Les objectifs peuvent être refaits, mais aucun point supplémentaire ne sera attribué.
+          </div>
+        </div>
+      )}
+      
       {showInstructions && (
         <div className="challenge-instructions">
           <h2>Instructions</h2>
@@ -296,7 +474,15 @@ useEffect(() => {
             <ObjectivesList 
               objectives={challenge.objectives} 
               completedObjectives={objectivesCompleted} 
+              refreshKey={refreshTrigger}
             />
+            <button 
+              className="refresh-objectives-btn"
+              onClick={refreshObjectives}
+              title="Actualiser les objectifs manuellement"
+            >
+              <i className="fas fa-sync"></i> Actualiser
+            </button>
           </div>
           
           {challenge.hints && challenge.hints.length > 0 && (
@@ -324,14 +510,6 @@ useEffect(() => {
             >
               Quitter le défi
             </button>
-          </div>
-          
-          {/* Section de débogage - à supprimer en production */}
-          <div className="debug-info" style={{ display: 'none' }}>
-            <h3>Infos de débogage</h3>
-            <p>Tentative ID: {attempt}</p>
-            <p>Objectifs complétés: {objectivesCompleted.length}</p>
-            <p>Répertoire actuel: {currentDirectory}</p>
           </div>
         </div>
       </div>

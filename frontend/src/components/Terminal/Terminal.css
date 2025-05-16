@@ -1,4 +1,4 @@
-/* src/components/Terminal/Terminal.css */
+/* src/components/Terminal/Terminal.css - Version mise à jour */
 .terminal {
   width: 100%;
   height: 600px;
@@ -10,6 +10,7 @@
   overflow: hidden;
   font-family: 'Courier New', monospace;
   color: #e6e6e6;
+  position: relative;
 }
 
 .terminal-header {
@@ -28,6 +29,13 @@
   font-weight: bold;
 }
 
+.terminal-title i {
+  color: #0f0;
+  font-size: 16px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 .terminal-controls {
   display: flex;
   gap: 8px;
@@ -38,6 +46,11 @@
   height: 12px;
   border-radius: 50%;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.control-dot:hover {
+  transform: scale(1.1);
 }
 
 .control-dot.red {
@@ -58,6 +71,21 @@
   overflow-y: auto;
   font-size: 14px;
   line-height: 1.5;
+  position: relative;
+}
+
+.terminal-special-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
 }
 
 .terminal-line {
@@ -85,13 +113,14 @@
 
 .terminal-input-line {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   margin-top: 5px;
 }
 
 .prompt {
   color: #0f0;
   margin-right: 5px;
+  white-space: nowrap;
 }
 
 .terminal-input {
@@ -103,6 +132,9 @@
   font-size: 14px;
   outline: none;
   caret-color: #0f0;
+  padding: 0;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .terminal-challenge-info {
@@ -164,4 +196,66 @@
   color: #0f0;
   opacity: 0.5;
   text-shadow: 0 0 5px #0f0;
+}
+
+/* Style pour l'animation de téléchargement */
+.download-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: #0f0;
+  text-align: center;
+}
+
+.download-progress {
+  width: 80%;
+  height: 24px;
+  background-color: #1a1a1a;
+  border: 1px solid #0f0;
+  border-radius: 3px;
+  margin: 20px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.download-progress-bar {
+  height: 100%;
+  background-color: #0f0;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px #0f0;
+}
+
+.download-info {
+  display: flex;
+  justify-content: space-between;
+  width: 80%;
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+/* Styles pour l'effet de déchiffrement */
+.decryption-effect {
+  color: #0f0;
+  width: 80%;
+}
+
+.decryption-header {
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.decryption-text {
+  font-family: monospace;
+  line-height: 1.5;
+  letter-spacing: 1px;
+}
+
+/* Assurer que les icônes Font Awesome sont toujours visibles */
+.fa, .fas, .far, .fab {
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }

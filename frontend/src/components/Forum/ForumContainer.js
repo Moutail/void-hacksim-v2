@@ -117,7 +117,7 @@ const ForumContainer = ({ initialChannel = 'general' }) => {
   };
 
   // Fonction pour ouvrir un fil de discussion
-  const handleOpenThread = async (messageId) => {
+    const handleOpenThread = async (messageId) => {
     setActiveThread(messageId);
     
     try {
@@ -125,7 +125,12 @@ const ForumContainer = ({ initialChannel = 'general' }) => {
       const response = await api.get(`/api/messages/thread/${messageId}`);
       
       if (response.data.status === 'success') {
-        setThreadReplies(response.data.data || []);
+        const replies = response.data.data || [];
+        
+        // Ajouter des logs pour le débogage
+        console.log("Réponses chargées pour le thread:", replies);
+        
+        setThreadReplies(replies);
       } else {
         setThreadReplies([]);
       }
@@ -200,58 +205,86 @@ const ForumContainer = ({ initialChannel = 'general' }) => {
   useEffect(() => {
     // Fonction pour gérer les nouveaux messages
     const handleNewMessage = (messageData) => {
-      console.log("Nouveau message reçu via Socket.io:", messageData);
+    console.log("Nouveau message reçu via Socket.io:", messageData);
+    
+    // Vérifier si le message appartient au canal actuel
+    if (messageData.channelId === currentChannel) {
+      // Vérifier si le message a déjà été traité (éviter les doublons)
+      if (messageData._id && processedMessageIds.has(messageData._id)) {
+        console.log("Message déjà traité, ignoré:", messageData._id);
+        return; // Ignorer ce message, il est déjà dans la liste
+      }
       
-      // Vérifier si le message appartient au canal actuel
-      if (messageData.channelId === currentChannel) {
-        // Vérifier si le message a déjà été traité (éviter les doublons)
-        if (messageData._id && processedMessageIds.has(messageData._id)) {
-          console.log("Message déjà traité, ignoré:", messageData._id);
-          return; // Ignorer ce message, il est déjà dans la liste
-        }
+      // Si le message n'a pas d'ID (messages envoyés par le client actuel via Socket.io),
+      // vérifier s'il existe un message avec le même contenu et la même heure
+      if (!messageData._id) {
+        const isDuplicate = messages.some(msg => 
+          msg.content === messageData.content && 
+          Math.abs(new Date(msg.createdAt) - new Date(messageData.timestamp)) < 2000 // Moins de 2 secondes de différence
+        );
         
-        // Si le message n'a pas d'ID (messages envoyés par le client actuel via Socket.io),
-        // vérifier s'il existe un message avec le même contenu et la même heure
-        if (!messageData._id) {
-          const isDuplicate = messages.some(msg => 
-            msg.content === messageData.content && 
-            Math.abs(new Date(msg.createdAt) - new Date(messageData.timestamp)) < 2000 // Moins de 2 secondes de différence
-          );
-          
-          if (isDuplicate) {
-            console.log("Message potentiellement dupliqué, ignoré");
-            return;
+        if (isDuplicate) {
+          console.log("Message potentiellement dupliqué, ignoré");
+          return;
+        }
+      }
+      
+      // Transformer la référence au message parent si elle existe
+      let replyToFormatted = null;
+      if (messageData.replyTo) {
+        // Si la réponse est un objet complet
+        if (typeof messageData.replyTo === 'object' && messageData.replyTo !== null) {
+          replyToFormatted = messageData.replyTo;
+        } 
+        // Si la réponse est juste un ID, chercher le message correspondant dans la liste existante
+        else if (typeof messageData.replyTo === 'string') {
+          const parentMessage = messages.find(msg => msg._id === messageData.replyTo);
+          if (parentMessage) {
+            replyToFormatted = {
+              _id: parentMessage._id,
+              content: parentMessage.content,
+              author: parentMessage.author
+            };
+          } else {
+            // Si le message parent n'est pas trouvé, créer un objet minimal
+            replyToFormatted = {
+              _id: messageData.replyTo,
+              content: null,
+              author: null
+            };
           }
         }
-        
-        // S'assurer que toutes les propriétés nécessaires sont présentes et correctement formatées
-        const newMessage = {
-          _id: messageData._id || `temp-${Date.now()}`,
-          content: messageData.content,
-          author: {
-            _id: messageData.userId || 'unknown',
-            username: messageData.username || 'Utilisateur inconnu',
-            role: messageData.role || 'user'
-          },
-          channel: currentChannel,
-          isAnnouncement: messageData.isAnnouncement || false,
-          createdAt: messageData.timestamp || new Date().toISOString(),
-          likes: messageData.likes || []
-        };
-        
-        console.log("Message formaté à ajouter:", newMessage);
-        
-        // Ajouter ce message à la liste des messages traités
-        setProcessedMessageIds(prev => {
-          const updated = new Set(prev);
-          updated.add(newMessage._id);
-          return updated;
-        });
-        
-        // Ajouter le message au début de la liste (les plus récents en premier)
-        setMessages(prevMessages => [newMessage, ...prevMessages]);
       }
-    };
+      
+      // S'assurer que toutes les propriétés nécessaires sont présentes et correctement formatées
+      const newMessage = {
+        _id: messageData._id || `temp-${Date.now()}`,
+        content: messageData.content,
+        author: {
+          _id: messageData.userId || 'unknown',
+          username: messageData.username || 'Utilisateur inconnu',
+          role: messageData.role || 'user'
+        },
+        channel: currentChannel,
+        isAnnouncement: messageData.isAnnouncement || false,
+        createdAt: messageData.timestamp || new Date().toISOString(),
+        likes: messageData.likes || [],
+        replyTo: replyToFormatted
+      };
+      
+      console.log("Message formaté à ajouter:", newMessage);
+      
+      // Ajouter ce message à la liste des messages traités
+      setProcessedMessageIds(prev => {
+        const updated = new Set(prev);
+        updated.add(newMessage._id);
+        return updated;
+      });
+      
+      // Ajouter le message au début de la liste (les plus récents en premier)
+      setMessages(prevMessages => [newMessage, ...prevMessages]);
+    }
+  };
     
     // Fonction pour gérer la suppression des messages
     const handleMessageDeleted = (data) => {
@@ -354,6 +387,10 @@ const ForumContainer = ({ initialChannel = 'general' }) => {
         // Si on répond à un message, ajouter l'ID du message parent
         if (replyingTo && replyingTo._id) {
           messageData.replyTo = replyingTo._id;
+          
+          // Ajouter des logs pour le débogage
+          console.log("Réponse au message:", replyingTo);
+          console.log("ID du message parent:", replyingTo._id);
         }
         
         console.log("Envoi de message avec données:", messageData);
@@ -362,6 +399,10 @@ const ForumContainer = ({ initialChannel = 'general' }) => {
         
         if (response.data.status === 'success') {
           const newMessage = response.data.data;
+          
+          // Log pour vérifier si le message parent est correctement retourné
+          console.log("Message créé avec succès:", newMessage);
+          console.log("Message parent:", newMessage.replyTo);
           
           // Émettre le message via Socket.io avec les informations complètes
           emitEvent('send_message', {

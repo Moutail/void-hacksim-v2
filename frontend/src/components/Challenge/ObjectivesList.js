@@ -1,27 +1,37 @@
 // src/components/Challenge/ObjectivesList.js - Version mise à jour
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import './ObjectivesList.css';
 
 const ObjectivesList = ({ objectives, completedObjectives = [], refreshKey = 0 }) => {
-  const [refresh, setRefresh] = useState(0);
+  // Utiliser un état pour la liste combinée des objectifs
+  const [displayedObjectives, setDisplayedObjectives] = useState([]);
   
-  // Force un re-rendu quand les props changent ou quand refreshKey change
   useEffect(() => {
-    console.log("ObjectivesList: props mises à jour");
-    console.log("Objectifs:", objectives?.map(o => ({ id: o._id, desc: o.description, completed: o.completed })));
-    console.log("Objectifs complétés:", completedObjectives);
-    console.log("Refresh Key:", refreshKey);
+    if (!objectives || objectives.length === 0) return;
     
-    // Forcer un re-rendu immédiatement
-    setRefresh(prev => prev + 1);
+    // Créer une liste combinée avec l'état complété correct
+    const updatedObjectives = objectives.map(objective => {
+      // Vérifier si l'objectif est complété via la prop ou via l'ID
+      const isCompletedById = Array.isArray(completedObjectives) && 
+                             completedObjectives.includes(objective._id);
+      return {
+        ...objective,
+        isCompleted: objective.completed || isCompletedById
+      };
+    });
     
-    // Et une seconde fois après un court délai pour s'assurer que les changements sont pris en compte
-    const timer = setTimeout(() => {
-      setRefresh(prev => prev + 1);
-    }, 100);
+    setDisplayedObjectives(updatedObjectives);
     
-    return () => clearTimeout(timer);
+    console.log("ObjectivesList mis à jour:", {
+      objectivesCount: objectives.length,
+      completedCount: completedObjectives.length,
+      updatedList: updatedObjectives.map(o => ({ 
+        id: o._id, 
+        desc: o.description.substring(0, 20), 
+        completed: o.isCompleted 
+      }))
+    });
   }, [objectives, completedObjectives, refreshKey]);
 
   if (!objectives || objectives.length === 0) {
@@ -29,41 +39,25 @@ const ObjectivesList = ({ objectives, completedObjectives = [], refreshKey = 0 }
   }
 
   return (
-    <div className="objectives-list" data-refresh={refresh}>
-      {objectives.map((objective, index) => {
-        // Vérifier si l'objectif est complété (plusieurs méthodes)
-        const completedByProp = objective.completed === true;
-        const completedByIds = Array.isArray(completedObjectives) && 
-                               completedObjectives.includes(objective._id);
-        const isCompleted = completedByProp || completedByIds;
-        
-        // Log pour débogage
-        console.log(`Objectif ${index} "${objective.description.substring(0, 20)}...":`, {
-          id: objective._id,
-          completedByProp,
-          completedByIds,
-          finalStatus: isCompleted
-        });
-        
-        return (
-          <div 
-            key={objective._id || index}
-            className={`objective-item ${isCompleted ? 'completed' : ''}`}
-            data-objective-id={objective._id}
-          >
-            <div className="objective-checkbox">
-              {isCompleted ? (
-                <i className="fas fa-check-circle" style={{ color: '#0f0' }}></i>
-              ) : (
-                <i className="fas fa-times-circle" style={{ color: '#ff3333' }}></i>
-              )}
-            </div>
-            <div className="objective-description">
-              {objective.description}
-            </div>
+    <div className="objectives-list">
+      {displayedObjectives.map((objective, index) => (
+        <div 
+          key={objective._id || index}
+          className={`objective-item ${objective.isCompleted ? 'completed' : ''}`}
+          data-objective-id={objective._id}
+        >
+          <div className="objective-checkbox">
+            {objective.isCompleted ? (
+              <i className="fas fa-check-circle" style={{ color: '#0f0' }}></i>
+            ) : (
+              <i className="fas fa-times-circle" style={{ color: '#ff3333' }}></i>
+            )}
           </div>
-        );
-      })}
+          <div className="objective-description">
+            {objective.description}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

@@ -561,42 +561,56 @@ class TerminalService {
    * Exécuter la commande cat avec support de chemins absolus
    */
   static async executeCAT(args, sessionData, result) {
-    if (args.length === 0) {
-      result.success = false;
-      result.error = 'Erreur: Nom de fichier requis';
-      return result;
-    }
-    
-    const filename = args[0];
-    
-    // Résoudre le chemin du fichier
-    const filePath = this.resolvePath(filename, result.newDirectory);
-    const parentDir = filePath.substring(0, filePath.lastIndexOf('/'));
-    const baseName = filePath.substring(filePath.lastIndexOf('/') + 1);
-    
-    // Vérifier si le parent existe
-    if (!sessionData.filesystem[parentDir]) {
-      result.success = false;
-      result.error = `Erreur: Répertoire parent de '${filename}' non trouvé`;
-      return result;
-    }
-    
-    // Vérifier si le fichier existe
-    if (!sessionData.filesystem[parentDir].includes(baseName)) {
-      result.success = false;
-      result.error = `Erreur: Fichier '${filename}' non trouvé`;
-      return result;
-    }
-    
-    // Lire le contenu du fichier
-    if (sessionData.fileContents[filePath]) {
-      result.output = sessionData.fileContents[filePath];
-    } else {
-      result.output = '(Fichier vide)';
-    }
-    
+  if (args.length === 0) {
+    result.success = false;
+    result.error = 'Erreur: Nom de fichier requis';
     return result;
   }
+  
+  const filename = args[0];
+  
+  // Résoudre le chemin du fichier
+  const filePath = this.resolvePath(filename, result.newDirectory);
+  
+  // Gérer les cas spéciaux pour les fichiers à la racine
+  let parentDir = filePath.substring(0, filePath.lastIndexOf('/'));
+  const baseName = filePath.substring(filePath.lastIndexOf('/') + 1);
+  
+  // Si parentDir est vide, cela signifie que nous sommes à la racine
+  if (parentDir === '') {
+    parentDir = '/';
+  }
+  
+  // D'abord vérifier si le chemin est un dossier (et non un fichier)
+  if (sessionData.filesystem[filePath] !== undefined) {
+    result.success = false;
+    result.error = `Erreur: '${filename}' est un répertoire, pas un fichier`;
+    return result;
+  }
+  
+  // Vérifier si le parent existe
+  if (!sessionData.filesystem[parentDir]) {
+    result.success = false;
+    result.error = `Erreur: Répertoire parent de '${filename}' non trouvé`;
+    return result;
+  }
+  
+  // Vérifier si le fichier existe dans le répertoire parent
+  if (!sessionData.filesystem[parentDir].includes(baseName)) {
+    result.success = false;
+    result.error = `Erreur: Fichier '${filename}' non trouvé`;
+    return result;
+  }
+  
+  // Lire le contenu du fichier
+  if (sessionData.fileContents[filePath]) {
+    result.output = sessionData.fileContents[filePath];
+  } else {
+    result.output = '(Fichier vide)';
+  }
+  
+  return result;
+}
   
   /**
    * Exécuter la commande touch avec support de chemins absolus

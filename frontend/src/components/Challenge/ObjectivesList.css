@@ -84,3 +84,13 @@
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+.objective-item.completed {
+  animation: objective-completed 1s ease-in-out;
+}
+
+@keyframes objective-completed {
+  0% { background-color: rgba(0, 255, 0, 0); }
+  50% { background-color: rgba(0, 255, 0, 0.3); }
+  100% { background-color: rgba(0, 255, 0, 0); }
+}

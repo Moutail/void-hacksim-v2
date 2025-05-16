@@ -18,6 +18,7 @@ const Challenge = () => {
   const [terminalActive, setTerminalActive] = useState(true);
   const [objectivesCompleted, setObjectivesCompleted] = useState([]);
   const [currentDirectory, setCurrentDirectory] = useState('/');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Charger le défi et l'état actuel
   useEffect(() => {
@@ -56,6 +57,67 @@ const Challenge = () => {
     
     loadChallenge();
   }, [id]);
+
+  // Dans Challenge.js, ajoutez un polling régulier
+useEffect(() => {
+  if (!id || !attempt) return;
+  
+  // Fonction pour rafraîchir les données
+  const refreshChallengeData = async () => {
+    try {
+      const response = await api.get(`/api/challenges/${id}`);
+      
+      if (response.data.status === 'success') {
+        // Mettre à jour uniquement si nécessaire
+        const newCompletedIds = response.data.data.challenge.objectives
+          .filter(obj => obj.completed)
+          .map(obj => obj._id);
+          
+        // Vérifier s'il y a des changements
+        const hasChanges = newCompletedIds.length !== objectivesCompleted.length ||
+          newCompletedIds.some(id => !objectivesCompleted.includes(id));
+          
+        if (hasChanges) {
+          setObjectivesCompleted(newCompletedIds);
+          setChallenge(response.data.data.challenge);
+          console.log("Mise à jour automatique des objectifs:", newCompletedIds);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement des données:', error);
+    }
+  };
+  
+  // Rafraîchir toutes les 3 secondes
+  const interval = setInterval(refreshChallengeData, 3000);
+  
+  // Nettoyer l'intervalle
+  return () => clearInterval(interval);
+}, [id, attempt, objectivesCompleted.length]);
+
+  // Fonction pour forcer le rafraîchissement de tous les objectifs
+  const refreshObjectives = async () => {
+    try {
+      const response = await api.get(`/api/challenges/${id}`);
+      
+      if (response.data.status === 'success') {
+        // Mettre à jour le challenge et les objectifs
+        setChallenge(response.data.data.challenge);
+        
+        // Actualiser les objectifs complétés
+        const completedIds = response.data.data.challenge.objectives
+          .filter(obj => obj.completed)
+          .map(obj => obj._id);
+        
+        setObjectivesCompleted(completedIds);
+        
+        // Incrémenter le trigger pour forcer un re-rendu
+        setRefreshTrigger(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Erreur lors du rafraîchissement des objectifs:', error);
+    }
+  };
 
   // Gérer l'exécution d'une commande
   const handleCommandExecute = async (commandResult) => {
@@ -122,6 +184,8 @@ const Challenge = () => {
             setTimeout(() => {
               showChallengeCompleteModal();
             }, 1500);
+            // Rafraîchir automatiquement les objectifs
+          await refreshObjectives();
           }
         }
         

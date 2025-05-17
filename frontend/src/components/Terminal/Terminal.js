@@ -114,19 +114,29 @@ const Terminal = ({ challenge, onCommandExecute, currentDirectory: initialDirect
 
   // Déterminer le type d'effet spécial à afficher basé sur la commande
   const determineSpecialEffect = (command) => {
-    const cmd = command.split(' ')[0].toLowerCase();
-    const args = command.split(' ').slice(1);
-    
-    if (cmd === 'decrypt' && args.length >= 2) {
-      return {
-        type: 'decryption',
-        params: {
-          fileName: args[1] || 'unknown.enc',
-          key: args[0] || 'UNKNOWN',
-          duration: 5000
-        }
-      };
-    } else if (cmd === 'download' && args.length >= 1) {
+  const cmd = command.split(' ')[0].toLowerCase();
+  
+  // Extraire les arguments en tenant compte des guillemets
+  let args = [];
+  const matches = command.match(/(?:[^\s"]+|"[^"]*")+/g);
+  if (matches && matches.length > 1) {
+    args = matches.slice(1).map(arg => 
+      arg.startsWith('"') && arg.endsWith('"') ? arg.slice(1, -1) : arg
+    );
+  } else {
+    args = command.split(' ').slice(1);
+  }
+  
+  if (cmd === 'decrypt' && args.length >= 2) {
+    return {
+      type: 'decryption',
+      params: {
+        fileName: args[1] || 'unknown.enc',
+        key: args[0] || 'UNKNOWN',
+        duration: 5000
+      }
+    };
+  } else if (cmd === 'download' && args.length >= 1) {
       return {
         type: 'download',
         params: {
@@ -408,7 +418,7 @@ const Terminal = ({ challenge, onCommandExecute, currentDirectory: initialDirect
         return (
           <DecryptionEffect 
             fileName={specialEffect.params.fileName}
-            key={specialEffect.params.key}
+            decryptKey={specialEffect.params.key}  // Changé ici
             onComplete={() => setSpecialEffect(null)}
           />
         );

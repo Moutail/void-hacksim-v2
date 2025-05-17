@@ -147,7 +147,7 @@ const Tutorial = () => {
             <p>Exemple: decrypt V01D-S3CR3T encrypted.dat</p>
             <DecryptionEffect 
               fileName="encrypted.dat" 
-              key="V01D-S3CR3T"
+              decryptKey="V01D-S3CR3T"  // Changé ici
               onComplete={() => {}}
             />
           </div>

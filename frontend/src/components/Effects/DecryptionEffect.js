@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import './Effects.css';
 
-const DecryptionEffect = ({ fileName = 'encrypted.dat', key = 'UNKNOWN', onComplete }) => {
+const DecryptionEffect = ({ fileName = 'encrypted.dat', decryptKey = 'UNKNOWN', onComplete }) => {
   const [decryptedText, setDecryptedText] = useState('');
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('analyzing');
@@ -112,7 +112,7 @@ VOID SECURITY PROTOCOL ACTIVE
           </div>
           <div className="info-row">
             <span className="label">Key:</span> 
-            <span className="value">{key}</span>
+            <span className="value">{decryptKey}</span>
           </div>
           <div className="info-row">
             <span className="label">Status:</span> 

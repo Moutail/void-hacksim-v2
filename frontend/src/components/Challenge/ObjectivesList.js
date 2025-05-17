@@ -1,37 +1,42 @@
-// src/components/Challenge/ObjectivesList.js - Version mise à jour
-
-import React, { useEffect, useState } from 'react';
+// src/components/Challenge/ObjectivesList.js
+import React, { useState, useEffect } from 'react';
 import './ObjectivesList.css';
 
 const ObjectivesList = ({ objectives, completedObjectives = [], refreshKey = 0 }) => {
-  // Utiliser un état pour la liste combinée des objectifs
   const [displayedObjectives, setDisplayedObjectives] = useState([]);
   
+  // Traitement des props pour créer un état local stable
   useEffect(() => {
     if (!objectives || objectives.length === 0) return;
     
-    // Créer une liste combinée avec l'état complété correct
-    const updatedObjectives = objectives.map(objective => {
-      // Vérifier si l'objectif est complété via la prop ou via l'ID
-      const isCompletedById = Array.isArray(completedObjectives) && 
-                             completedObjectives.includes(objective._id);
+    // Préparer les objectifs avec leur état de complétion
+    const processedObjectives = objectives.map(objective => {
+      // Vérifier si l'objectif est complété via la prop
+      const completedByProp = objective.completed === true;
+      
+      // Vérifier si l'objectif est dans la liste des objectifs complétés
+      const completedById = Array.isArray(completedObjectives) && 
+                           completedObjectives.includes(objective._id);
+      
+      // Un objectif est considéré complété si l'une des conditions est vraie
+      const isCompleted = completedByProp || completedById;
+      
       return {
         ...objective,
-        isCompleted: objective.completed || isCompletedById
+        isCompleted,
       };
     });
     
-    setDisplayedObjectives(updatedObjectives);
-    
-    console.log("ObjectivesList mis à jour:", {
-      objectivesCount: objectives.length,
-      completedCount: completedObjectives.length,
-      updatedList: updatedObjectives.map(o => ({ 
-        id: o._id, 
-        desc: o.description.substring(0, 20), 
-        completed: o.isCompleted 
+    console.log("ObjectivesList: Objectifs traités:", 
+      processedObjectives.map(o => ({
+        id: o._id,
+        description: o.description.substring(0, 30),
+        completed: o.isCompleted
       }))
-    });
+    );
+    
+    // Mettre à jour l'état local
+    setDisplayedObjectives(processedObjectives);
   }, [objectives, completedObjectives, refreshKey]);
 
   if (!objectives || objectives.length === 0) {

@@ -20,82 +20,95 @@ class TerminalService {
    * @param {string} attemptId - ID de la tentative (optionnel)
    * @returns {Promise<Object>} - Données de la session
    */
-  static async initializeSession(userId, challengeId = null, attemptId = null) {
+    static async initializeSession(userId, challengeId = null, attemptId = null) {
     // Créer une clé unique pour la session
     const sessionKey = `${userId}:${challengeId || 'general'}`;
     
     // Vérifier si une session existe déjà
     if (terminalSessions.has(sessionKey)) {
-      console.log(`Session existante trouvée pour ${sessionKey}`);
-      return terminalSessions.get(sessionKey);
+        console.log(`Session existante trouvée pour ${sessionKey}`);
+        return terminalSessions.get(sessionKey);
     }
     
     // Récupérer l'utilisateur
     const user = await User.findById(userId);
     if (!user) {
-      throw new Error('Utilisateur non trouvé');
+        throw new Error('Utilisateur non trouvé');
     }
     
     // Préparer les données de session
     let sessionData = {
-      userId,
-      challengeId,
-      attemptId,
-      filesystem: { ...user.filesSystem } || {},
-      fileContents: { ...user.fileContents } || {},
-      currentDirectory: '/',
-      lastAccessed: Date.now()
+        userId,
+        challengeId,
+        attemptId,
+        filesystem: {},  // Initialiser vide, on le remplira correctement ensuite
+        fileContents: {},
+        currentDirectory: '/',
+        lastAccessed: Date.now()
     };
     
     // Si on est dans un défi, initialiser avec les données du défi
     if (challengeId) {
-      const challenge = await Challenge.findById(challengeId);
-      if (!challenge) {
+        const challenge = await Challenge.findById(challengeId);
+        if (!challenge) {
         throw new Error('Défi non trouvé');
-      }
-      
-      // Récupérer ou créer une tentative
-      let attempt;
-      if (attemptId) {
+        }
+        
+        // Récupérer ou créer une tentative
+        let attempt;
+        if (attemptId) {
         attempt = await Attempt.findById(attemptId);
-      } else {
+        } else {
         attempt = await Attempt.findOne({
-          user: userId,
-          challenge: challengeId,
-          completed: false
+            user: userId,
+            challenge: challengeId,
+            completed: false
         }).sort({ startedAt: -1 });
         
         if (!attempt) {
-          // Créer une nouvelle tentative
-          attempt = new Attempt({
+            // Créer une nouvelle tentative
+            attempt = new Attempt({
             user: userId,
             challenge: challengeId,
-            startedAt: new Date()
-          });
-          await attempt.save();
+            startedAt: new Date(),
+            filesystemInitialized: false
+            });
+            await attempt.save();
         }
-      }
-      
-      sessionData.attemptId = attempt._id;
-      
-      // Initialiser le système de fichiers avec celui du défi si c'est une nouvelle tentative
-      if (!user.filesSystem || Object.keys(user.filesSystem).length === 0) {
+        }
+        
+        sessionData.attemptId = attempt._id;
+        
+        // SOLUTION: Toujours initialiser avec les données du défi si on démarre une session
+        // ou si l'utilisateur a demandé une réinitialisation
+        console.log('Initialisation du système de fichiers pour le défi:', challenge.title);
+        
+        // Initialiser avec les données du défi
         sessionData.filesystem = JSON.parse(JSON.stringify(challenge.initialFiles || {}));
         sessionData.fileContents = JSON.parse(JSON.stringify(challenge.initialFileContents || {}));
         
-        // Sauvegarder dans l'utilisateur
+        // Marquer comme initialisé
+        attempt.filesystemInitialized = true;
+        await attempt.save();
+        
+        // Mise à jour importante: sauvegarder dans l'utilisateur
         user.filesSystem = sessionData.filesystem;
         user.fileContents = sessionData.fileContents;
         await user.save();
-      }
-      
-      // Récupérer les objectifs complétés
-      const completedObjectiveIds = attempt.objectivesCompleted
+        
+        console.log('Système de fichiers initialisé. Chemins:', Object.keys(sessionData.filesystem).join(', '));
+        
+        // Récupérer les objectifs complétés
+        const completedObjectiveIds = attempt.objectivesCompleted
         ? attempt.objectivesCompleted.map(obj => obj.objectiveId)
         : [];
         
-      sessionData.completedObjectives = completedObjectiveIds;
-      sessionData.attempt = attempt;
+        sessionData.completedObjectives = completedObjectiveIds;
+        sessionData.attempt = attempt;
+    } else {
+        // Si pas de défi, utiliser le système de fichiers de l'utilisateur
+        sessionData.filesystem = { ...user.filesSystem } || {};
+        sessionData.fileContents = { ...user.fileContents } || {};
     }
     
     // Stocker la session
@@ -103,7 +116,7 @@ class TerminalService {
     console.log(`Nouvelle session créée pour ${sessionKey}`);
     
     return sessionData;
-  }
+    }
   
   /**
    * Exécuter une commande dans le terminal
@@ -186,8 +199,62 @@ class TerminalService {
         case 'help':
           result.output = this.getHelpText();
           break;
+         case 'reset_filesystem':
+            if (challengeId) {
+                const resetResult = await this.resetChallengeFilesystem(userId, challengeId, sessionData.attemptId);
+                if (resetResult.success) {
+                result.output = `Système de fichiers réinitialisé avec succès.\nUtilisez 'cd /' pour revenir à la racine et explorer les fichiers disponibles.`;
+                
+                // Importante mise à jour: supprimer la session actuelle pour forcer
+                // une nouvelle initialisation la prochaine fois
+                terminalSessions.delete(sessionKey);
+                
+                // Rediriger vers la racine
+                result.newDirectory = '/';
+                } else {
+                result.success = false;
+                result.error = `Erreur lors de la réinitialisation: ${resetResult.error}`;
+                }
+            } else {
+                result.success = false;
+                result.error = 'Cette commande ne peut être utilisée que dans un défi.';
+            }
+            break; 
         // Commandes spéciales
         case 'decrypt':
+            if (args.length < 2) {
+                result.success = false;
+                result.error = 'Erreur: Utilisation: decrypt [clé] [fichier]';
+                return result;
+            }
+            
+            // Extraire la clé et gérer les guillemets si présents
+            let decryptKey = args[0];
+            if (decryptKey.startsWith('"') && decryptKey.endsWith('"')) {
+                decryptKey = decryptKey.slice(1, -1); // Enlever les guillemets
+            }
+            
+            const encryptedFile = args[args.length - 1]; // Prendre le dernier argument comme nom de fichier
+            
+            // Résoudre le chemin du fichier crypté
+            const encryptedFilePath = this.resolvePath(encryptedFile, result.newDirectory);
+            
+            // Vérifier si le fichier existe
+            if (!sessionData.fileContents[encryptedFilePath]) {
+                result.success = false;
+                result.error = `Erreur: Fichier '${encryptedFile}' non trouvé`;
+                return result;
+            }
+            
+            // Simuler le déchiffrement - comparer sans tenir compte des espaces
+            const expectedKey = 'V01D-S3CR3T';
+            if (decryptKey.trim() === expectedKey.trim()) {
+                result.output = `Fichier ${encryptedFile} déchiffré avec succès.\n\nCONTENU DÉCHIFFRÉ:\n-----------------\nMISSION: VOID SHIELD\nPriority: A1\n\nCible identifiée. Procédez à l'extraction des données comme convenu.\nCoordonnées: 47.2184° N, 8.9774° E\nCode d'accès aux serveurs: SV-1337-42\n\nDétruisez ces données après lecture.\n\nVOID SEC COMMAND`;
+            } else {
+                result.success = false;
+                result.error = `Erreur de déchiffrement: Clé invalide pour ${encryptedFile}`;
+            }
+            break;
         case 'download':
         case 'hack':
         case 'exploit':
@@ -1273,6 +1340,7 @@ class TerminalService {
   - clear : Effacer l'écran du terminal
   - whoami : Afficher votre identité
   - pwd : Afficher le répertoire courant
+  - reset_filesystem : Réinitialiser le système de fichiers du défi en cours
   - help : Afficher cette aide
   
   Conseils:
